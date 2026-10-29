@@ -20,14 +20,20 @@ captions still work without one. Interact with the page to enable audio.
 
 ## Controls and game features
 
-- WASD / arrows move; Shift dashes; P or Escape pauses; R restarts.
+- WASD / arrows move; Space or Shift performs the samurai dash/slice; F shoots. P or Escape pauses; R restarts.
 - Touch D-pad and Dash appear on narrow screens or touch devices.
-- Set 1–12 starting creatures and 1, 3, or 5 lives, then choose New round.
+- Choose Easy / Normal / Hard, 1–12 base creatures and 1, 3, or 5 lives, then New round. Difficulty scales creature count/speed and starting time (80/60/48 seconds).
+- Local 2P: P1 WASD, Space/Shift slice, F shoot; P2 arrows, Enter slice, L shoot.
+  Separate scores, coin combos and lives; shared timer. M switches mode and restarts.
+  A knocked-out player stays out while the other continues; highest score wins.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
 - Collect five coins, dash three times, and reach level three to complete missions.
-- Special shield coins block one hit; magnet coins attract nearby coins briefly.
+- Special shield coins block one hit; magnets attract nearby coins; speed coins grant 1.6× speed for 5 seconds. Effects belong to the collecting player.
+- Hila's chasers pursue the nearest player, patrollers pace a line, and zippers bounce fast.
+  Slicing/shooting them awards 5/3/10 points; they respawn after 3 active seconds.
+- An untouched close call earns +2 points. Combat and close calls never add coin time.
 - One creature at a time can turn angry/red and chase for a short burst.
 - Fast chains trigger WOW / YOU SUPER, reward floats and funny voice reactions;
   slow gaps can trigger playful comments. Voice/teasing are optional controls.
@@ -45,9 +51,10 @@ agents with branches/worktrees, and review and test before merging. See
 
 The Phaser scene coordinates focused components: `CoinDashRound` owns active time
 and levels; lives, dash, scoring, touch, arena, reactions, missions, power-ups and
-rage own their state and cleanup. Modules use `player-dash` and `special-coin`
-events instead of replacing each other's methods. Hila owns enemy varieties;
-the optional rage overlay takes temporary velocity priority after her update.
+rage own their state and cleanup. Multiplayer owns per-player state; combat owns
+projectiles/respawns; scoring owns the single points ledger. Modules use `player-dash` and `special-coin`
+events instead of replacing each other's methods. Hila's enemy, combat, difficulty, multiplayer and close-call branches were ported
+into the shared component architecture with coauthor credit. The optional rage overlay takes temporary velocity priority after her update.
 
 ```sh
 node --test tests/*.test.cjs
