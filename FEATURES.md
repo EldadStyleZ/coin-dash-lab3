@@ -21,9 +21,9 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | LIVES | Life system and hit invulnerability | Eldad lives agent | done | eldad/lives; features/lives.js, tests/lives.test.cjs | Multi-life hits, temporary immunity, last-life game over, clean restart |
 | ENEMY-TYPES | Enemy varieties / behaviors | Hila's AI | planned | Hila to fill in branch and owned files | Reserved for Hila by the pair; Eldad must not implement enemy varieties |
 
-| DASH | Shift dash with cooldown and touch dash button | Eldad abilities agent | implementing | eldad/dash; features/abilities.js, tests/abilities.test.cjs | Class with active-time cooldown; no changes to Hila's enemies |
-| SCORING | Coin combos, personal bests and achievements | Eldad scoring agent | implementing | eldad/scoring; features/scoring.js, tests/scoring.test.cjs | Separate class; defensive local storage, settings-specific best |
-| TOUCH | Pointer/touch directional controls | Eldad controls agent | implementing | eldad/touch; features/controls.js, features/controls.css, tests/controls.test.cjs | Multi-pointer, release/cancel/blur cleanup, keyboard support stays in core |
+| DASH | Shift dash with cooldown and touch dash button | Eldad abilities agent | awaiting integration | eldad/dash; features/abilities.js, tests/abilities.test.cjs | Class with active-time cooldown; no changes to Hila's enemies |
+| SCORING | Coin combos, personal bests and achievements | Eldad scoring agent | awaiting integration | eldad/scoring; features/scoring.js, tests/scoring.test.cjs | Separate class; defensive local storage, settings-specific best |
+| TOUCH | Pointer/touch directional controls | Eldad controls agent | awaiting integration | eldad/touch; features/controls.js, features/controls.css, tests/controls.test.cjs | Multi-pointer, release/cancel/blur cleanup, keyboard support stays in core |
 | ROUND-STATE | OOP round state and integration | Eldad coordinator | implementing | eldad/polish; features/round.js, tests/round.test.cjs, game.js, index.html, settings.js, style.css | Separate state from rendering; wire the second batch |
 
 ## Shared integration boundary
@@ -36,6 +36,11 @@ See `docs/feature-contract.md` for stable integration hooks. Core ownership is
 released after integration is checked; this does not reserve shared files forever.
 
 ## Checks, failures, and fixes
+
+- Second batch: dash 7 tests, scoring 10 tests, touch 7 tests passed before integration.
+- Round-model test initially failed because it compared a floating-point multiplier
+  with exact equality (1.1400000000000001 versus 1.14). Fixed the assertion to use
+  numeric tolerance; all 5 round-state tests pass. Combined browser checks pending.
 
 - Setup initially blocked by the agent's network sandbox. Full access became
   effective in the next turn; clone, GitHub authentication, and test push passed.
