@@ -64,13 +64,26 @@ released after integration is checked; this does not reserve shared files foreve
 | HILA-INTEGRATION | Combined partner branch | Hila | implementing | integration/all-features (not yet remote) | Hila's isolated playtest; no blind whole-core merge |
 | FINAL-QA | Integration cleanup and coin reward regression checks | Eldad integration agent | implementing | eldad/final-integration; game.js, tests/integration.test.cjs | Review found rage cleanup must run on game over; fix before next gameplay push |
 
-Eldad's proposed overlap resolution: keep the existing Shift/touch dash, scoring
+User authorized Eldad to integrate all pushed Hila features. Integration ownership
+now transfers to Eldad; Hila keeps authorship and her branches. Overlap resolution: keep the existing Shift/touch dash, scoring
 combo, shield/magnet and lives systems. Add Hila's unique enemy behaviors first;
 coordinate dash-kill and F-shooting through explicit callbacks. Ordinary enemy
-contact must retain the multi-life system. Hila should confirm or suggest changes
-in HILA_STATUS.md before overlapping ports. Eldad is finishing integration QA and
-will release the shared core at the next verified checkpoint. No partner branch
+contact must retain the multi-life system. Hila should push completed work and update HILA_STATUS.md; Eldad ports it onto the current core. Eldad is finishing integration QA and
+will release the shared core after the partner integration checkpoint. No partner branch
 is discarded or overwritten.
+
+## Partner integration assignments (user-authorized handoff)
+
+| Work | Owner | Status | Branch / exclusive files |
+| --- | --- | --- | --- |
+| Port Hila enemy types, dash kills and shooting | Eldad enemy port agent | implementing | eldad/hila-enemies; features/enemies.js, features/combat.js, tests/enemies.test.cjs, tests/combat.test.cjs |
+| Port difficulty, near misses, speed pickup; adapt pickups to both players | Eldad extras port agent | implementing | eldad/hila-extras; features/difficulty.js, features/near-miss.js, features/powerups.js, tests/difficulty.test.cjs, tests/near-miss.test.cjs, tests/powerups.test.cjs |
+| Port 2P with per-player lives/scores; integrate all ports | Eldad coordinator | implementing | eldad/pair-core; game.js (after FINAL-QA handoff), index.html, settings.js, style.css, features/multiplayer.js, features/abilities.js, features/scoring.js, features/rage.js, tests/multiplayer.test.cjs, tests/abilities.test.cjs, tests/scoring.test.cjs, tests/integration.test.cjs (after FINAL-QA), README.md, docs/feature-contract.md |
+
+Keep one dash, combo and power-up system. Bring Hila's three enemy behaviors,
+per-type kill points, F shooting, speed pickups, near misses, difficulty presets,
+and two-player mode into those systems. Preserve each partner's source commits
+and credit in port commits. Integrate serially and test the combined game.
 
 ## Checks, failures, and fixes
 
