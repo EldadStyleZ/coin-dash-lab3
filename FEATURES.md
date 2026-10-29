@@ -10,16 +10,21 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
 | --- | --- | --- | --- | --- | --- |
 | SETUP | Clone and first test push | Eldad coordinator | done | main; docs/eldad-access-check.md | Pushed 38f725c; Hila accepted collaborator invitation |
-| VISUALS | Player/enemy sprites and distinct enemy colors | Eldad visuals agent | awaiting integration | eldad/visuals; features/visuals.js, style.css | Keep Hila's enemy types and behaviors separate; expose reusable sprite factories |
-| SETTINGS | Controls for starting creature count and lives | Eldad coordinator | implementing | eldad/core; game.js, settings.js, index.html | Apply on a new round; validate/clamp values |
-| LEVELS | Levels get harder over time | Eldad coordinator | implementing | eldad/core; game.js, settings.js, index.html | Scale speed and add enemies with caps; preserve enemy type metadata |
-| AUDIO | Background music and action sounds | Eldad audio agent | awaiting integration | eldad/audio; features/audio.js | Offline synthesis; gesture unlock, mute and volume; restart cleanup |
-| LIVES | Life system and hit invulnerability | Eldad lives agent | awaiting integration | eldad/lives; features/lives.js, tests/lives.test.cjs | Multi-life hits, temporary immunity, last-life game over, clean restart |
+| VISUALS | Player/enemy sprites and distinct enemy colors | Eldad visuals agent | done | eldad/visuals; features/visuals.js, style.css | Keep Hila's enemy types and behaviors separate; expose reusable sprite factories |
+| SETTINGS | Controls for starting creature count and lives | Eldad coordinator | done | eldad/core; game.js, settings.js, index.html | Apply on a new round; validate/clamp values |
+| LEVELS | Levels get harder over time | Eldad coordinator | done | eldad/core; game.js, settings.js, index.html | Scale speed and add enemies with caps; preserve enemy type metadata |
+| AUDIO | Background music and action sounds | Eldad audio agent | done | eldad/audio; features/audio.js | Offline synthesis; gesture unlock, mute and volume; restart cleanup |
+| LIVES | Life system and hit invulnerability | Eldad lives agent | done | eldad/lives; features/lives.js, tests/lives.test.cjs | Multi-life hits, temporary immunity, last-life game over, clean restart |
 | ENEMY-TYPES | Enemy varieties / behaviors | Hila's AI | planned | Hila to fill in branch and owned files | Reserved for Hila by the pair; Eldad must not implement enemy varieties |
+
+| DASH | Shift dash with cooldown and touch dash button | Eldad abilities agent | implementing | eldad/dash; features/abilities.js, tests/abilities.test.cjs | Class with active-time cooldown; no changes to Hila's enemies |
+| SCORING | Coin combos, personal bests and achievements | Eldad scoring agent | implementing | eldad/scoring; features/scoring.js, tests/scoring.test.cjs | Separate class; defensive local storage, settings-specific best |
+| TOUCH | Pointer/touch directional controls | Eldad controls agent | implementing | eldad/touch; features/controls.js, features/controls.css, tests/controls.test.cjs | Multi-pointer, release/cancel/blur cleanup, keyboard support stays in core |
+| ROUND-STATE | OOP round state and integration | Eldad coordinator | implementing | eldad/polish; features/round.js, tests/round.test.cjs, game.js, index.html, settings.js, style.css | Separate state from rendering; wire the second batch |
 
 ## Shared integration boundary
 
-Eldad currently owns `game.js`, `settings.js`, and `index.html` while wiring the
+First batch merged and checked; Eldad continues to own `game.js`, `settings.js`, and `index.html` while wiring the
 above features. Hila: implement enemy varieties in a separate module (suggested
 `features/enemies.js`) and describe required wiring here, or coordinate a handoff
 before editing those shared files. Do not overwrite another owner's integration.
@@ -33,7 +38,7 @@ released after integration is checked; this does not reserve shared files foreve
 - Authored runtime inspected before execution: local scripts only, no backend or
   network requests. Vendored Phaser matches its official CDN byte for byte.
   SHA-256: e92ddef111ba42e92d316979c732311757093688ea1810591cb7aa2858eba7a7.
-- Module checks passed: lives 8 tests, audio 5 lifecycle tests, sprite factories smoke-tested. Combined browser playtest pending; none are marked done yet.
+- First batch checked: all 13 Node tests pass. Chrome showed 6 configured enemies/5 lives, progression to level 6/11 enemies, 0-life game over, restart restoring lives, pause, distinct sprites, gesture-unlocked audio controls, and no console errors. Audio output device listening remains a human check.
 
 ## Shared checkpoint and report
 
