@@ -5,6 +5,13 @@ Collect coins, dodge creatures and survive a growing swarm. Start with 60 second
 **every normal or special coin adds 3 seconds**. Difficulty rises every 10 seconds
 of active play, even when coins extend the timer.
 
+## Play online
+
+[Play Coin Dash](https://eldadstylez.github.io/coin-dash-lab3/)
+
+GitHub Pages serves the latest `main` branch. The `.nojekyll` file keeps this
+plain static game unchanged by a site generator.
+
 ## Play locally
 
 Open `index.html`, or serve this folder:
