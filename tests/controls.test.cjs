@@ -31,9 +31,9 @@ function setup() {
   document.defaultView = window;
   document.createElement = () => new Element(document);
   const container = new Element(document);
-  let dashes = 0;
-  const controls = new CoinDashTouchControls({ container, onDash: () => dashes++ });
-  return { controls, container, document, window, get dashes() { return dashes; } };
+  let strikes = 0;
+  const controls = new CoinDashTouchControls({ container, onStrike: () => strikes++ });
+  return { controls, container, document, window, get strikes() { return strikes; } };
 }
 function press(button, id) { return button.emit('pointerdown', { pointerId: id, button: 0 }); }
 
@@ -76,19 +76,19 @@ test('Space/Enter hold directions, ignore repeats and release after focus change
   assert.deepEqual(controls.direction(), { x: 0, y: 0 });
 });
 
-test('dash fires once per press, repeated keydown is ignored and touch plus keyboard coexist', () => {
+test('strike fires once per press, repeated keydown is ignored and touch plus keyboard coexist', () => {
   const state = setup();
-  const dash = state.controls.buttons.get('dash'), up = state.controls.buttons.get('up');
-  press(up, 1); press(dash, 2);
-  dash.emit('pointerup', { pointerId: 2 });
-  dash.emit('click', { detail: 1 });
-  dash.emit('keydown', { code: 'Space' });
-  dash.emit('keydown', { code: 'Space', repeat: true });
-  assert.equal(state.dashes, 2);
+  const strike = state.controls.buttons.get('strike'), up = state.controls.buttons.get('up');
+  press(up, 1); press(strike, 2);
+  strike.emit('pointerup', { pointerId: 2 });
+  strike.emit('click', { detail: 1 });
+  strike.emit('keydown', { code: 'Space' });
+  strike.emit('keydown', { code: 'Space', repeat: true });
+  assert.equal(state.strikes, 2);
   assert.deepEqual(state.controls.direction(), { x: 0, y: -1 });
-  dash.emit('keyup', { code: 'Space' });
-  dash.emit('click', { detail: 0 });
-  assert.equal(state.dashes, 3);
+  strike.emit('keyup', { code: 'Space' });
+  strike.emit('click', { detail: 0 });
+  assert.equal(state.strikes, 3);
 });
 
 test('blur and hidden page reset all pointers and keys, including pointer capture', () => {
@@ -115,7 +115,7 @@ test('destroy is idempotent, removes its DOM/listeners and prevents old callback
   assert.equal(state.document.listenerCount(), 0);
   buttons.forEach(button => assert.equal(button.listenerCount(), 0));
   press(buttons[4], 9);
-  assert.equal(state.dashes, 0);
+  assert.equal(state.strikes, 0);
   assert.deepEqual(state.controls.direction(), { x: 0, y: 0 });
 });
 

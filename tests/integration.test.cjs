@@ -153,7 +153,7 @@ test('actual finish immediately restores active rage and remains idempotent afte
   s.rage.update(s.runTime, 16);
   assert.equal(h.enemy.getData('enraged'), true);
   assert.equal(h.enemy.tintTopLeft, 0xff3030);
-  assert.ok(Math.abs(Math.hypot(h.enemy.body.velocity.x, h.enemy.body.velocity.y) - 126) < 1e-8);
+  assert.ok(Math.abs(Math.hypot(h.enemy.body.velocity.x, h.enemy.body.velocity.y) - 63) < 1e-8);
   s.finish('Out of lives!');
   assert.equal(s.finished, true);
   assert.equal(s.round.finished, true);

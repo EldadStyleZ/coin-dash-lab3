@@ -25,7 +25,7 @@
       this.collider = null;
       this.status = typeof document !== 'undefined' ? document.getElementById('multiplayer-status') : null;
       this.secondPlayerStatus = typeof document === 'undefined' ? []
-        : ['p2-lives-status', 'p2-dash-status'].map(id => document.getElementById(id))
+        : ['p2-lives-status', 'p2-strike-status'].map(id => document.getElementById(id))
           .filter(Boolean).map(node => ({ node, hidden: node.hidden }));
       this.secondPlayerStatus.forEach(({ node }) => { node.hidden = Number(scene.config.playerCount) !== 2; });
       this.runners = [{ id: 'p1', player: scene.player, abilities: scene.abilities,
@@ -49,7 +49,7 @@
         facade.player = player;
         Object.defineProperty(facade, 'finished', { get: () => scene.finished || runner.out });
         runner.abilities = new root.CoinDashAbilities(facade, {
-          keys: ['ENTER'], statusId: 'p2-dash-status', label: 'Enter', runnerId: 'p2'
+          keys: ['ENTER'], statusId: 'p2-strike-status', label: 'Enter', runnerId: 'p2'
         });
         runner.lives = root.CoinDashLives.create(facade, {
           maxLives: scene.config.startingLives,

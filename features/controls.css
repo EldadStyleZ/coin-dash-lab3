@@ -38,7 +38,7 @@
 .coin-touch-left { grid-column: 1; grid-row: 2; }
 .coin-touch-down { grid-column: 2; grid-row: 2; }
 .coin-touch-right { grid-column: 3; grid-row: 2; }
-.coin-touch-dash { min-width: 80px; min-height: 64px; padding: 8px; font-size: 14px; }
+.coin-touch-strike { min-width: 80px; min-height: 64px; padding: 8px; font-size: 14px; }
 @media (pointer: coarse), (max-width: 900px) {
   #touch-controls { display: block; }
 }
@@ -46,5 +46,5 @@
   .coin-touch-controls { padding: 10px; gap: 10px; }
   .coin-touch-pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 4px; }
   .coin-touch-button { min-width: 44px; min-height: 44px; }
-  .coin-touch-dash { min-width: 64px; min-height: 56px; }
+  .coin-touch-strike { min-width: 64px; min-height: 56px; }
 }

@@ -73,10 +73,9 @@ exactly three seconds, missions, audio, reactions. Special coins emit
 `special-coin` with `{type,x,y,runnerId}`. `awardPoints(points,reason,runnerId)`
 adds bonus points without adding time, coin counts, or combo credit.
 
-`CoinDashCombat` owns F/L shooting, dash-kills, slice effects, and active-time
-respawns. Space/Shift and P2 Enter all use `CoinDashAbilities`; there is one dash
-cooldown per player. Ordinary contact uses lives. Call near-miss `contact` before
-shield, immunity or dash early returns. Enemy normal updates precede rage.
+`CoinDashCombat` owns F/L shooting, sword-kills, slice effects, and active-time
+respawns. Space/Shift and P2 Enter all use `CoinDashAbilities`; each player has a stationary strike with a 1-second miss cooldown and an immediate reset on a sword kill. Ordinary contact uses lives. Call near-miss `contact` before
+shield, immunity or strike early returns. Enemy normal updates precede rage.
 
 Powerups expose `speedMultiplier(time,runnerId)` and `absorbHit(time,runnerId)`;
 effects belong to collectors. Death removes that player's effects. Finish clears
@@ -85,4 +84,11 @@ all owned listeners/colliders. Native form arrows remain usable; arena scroll
 prevention runs at window AFTER Phaser's input listener.
 
 The port source commits are recorded in FEATURES.md; their original branches
-remain available. Overlaps use one existing combo, shield/magnet, and dash system.
+remain available. Overlaps use one existing combo, shield/magnet, and strike system.
+
+
+Combat playtest update: `abilities.strike(time)` emits `player-strike` with a
+per-player strike ID. Movement is never boosted. Combat applies short-range facing
+arcs with wall checks, awards kill points once, and resets only the killer's
+corresponding cooldown. Quick kills form a 2.5-second chain; a missed sword strike
+breaks the chain. Angry chase speed is half the previous final speed, capped at180.

@@ -37,8 +37,8 @@ canvas { display: block; max-width: 100%; image-rendering: pixelated; }
 #game canvas { margin-inline: auto; }
 #game-status { color: var(--muted); font-size: 11px; min-height: 16px; line-height: 1.35; }
 .combat-readout { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font: 11px/1.4 ui-monospace, monospace; }
-#dash-status { color: var(--mint); }
-#p2-dash-status { color: #8bd5ff; }
+#strike-status { color: var(--mint); }
+#p2-strike-status { color: #8bd5ff; }
 #rage-status { color: #ff9c9c; margin-left: auto; }
 .powerup-readout { font-size: 11px; color: #d7c6ff; line-height: 1.35; }
 .controls-help { font-size: 11px; color: var(--muted); text-align: center; flex: none; }
@@ -92,3 +92,6 @@ input[type="checkbox"] { accent-color: var(--mint); width: 17px; height: 17px; v
   .stat-card { padding: 2px 10px; }
   .stat-value { font-size: 17px; }
 }
+
+.kill-readout { color: var(--gold); font-size: 11px; line-height: 1.35; font-weight: 700; }
+.kill-readout:empty { display: none; }

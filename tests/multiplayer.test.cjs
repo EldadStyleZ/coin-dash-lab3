@@ -25,7 +25,7 @@ function addBody(player) {
 }
 function setup(playerCount = 2, startingLives = 3) {
   const nodes = {};
-  for (const id of ['lives-status', 'dash-status', 'p2-lives-status', 'p2-dash-status', 'multiplayer-status']) {
+  for (const id of ['lives-status', 'strike-status', 'p2-lives-status', 'p2-strike-status', 'multiplayer-status']) {
     let value = '';
     nodes[id] = { writes: 0, hidden: id.startsWith('p2'), attributes: {},
       get textContent() { return value; },
@@ -101,7 +101,7 @@ test('two-player bodies and controls stay separate with normalized diagonals', (
   assert.equal(colliders[0].obstacles, scene.arena.obstacles);
   assert.equal(colliders[0].player, p2.player);
   assert.equal(nodes['p2-lives-status'].hidden, false);
-  assert.equal(nodes['p2-dash-status'].hidden, false);
+  assert.equal(nodes['p2-strike-status'].hidden, false);
   scene.cursors.right.isDown = scene.cursors.down.isDown = true;
   multiplayer.update(0, 16);
   assert.equal(speed(p1), 0);
@@ -132,22 +132,22 @@ test('real abilities use Space/Shift for P1 and Enter for P2, with separate cool
   const p1 = multiplayer.getRunner('p1');
   const p2 = multiplayer.getRunner('p2');
   const events = [];
-  scene.events.on('player-dash', event => events.push(event.runnerId));
+  scene.events.on('player-strike', event => events.push(event.runnerId));
   scene.keys.D.isDown = scene.cursors.up.isDown = true;
   multiplayer.update(0, 16);
   keyboard.emit('keydown-SPACE', { target: { tagName: 'CANVAS' } });
   multiplayer.update(10, 10);
-  close(speed(p1), 600);
+  close(speed(p1), 240);
   close(speed(p2), 240);
-  assert.equal(p2.abilities.nextDashAt, 0);
+  assert.equal(p2.abilities.nextStrikeAt, 0);
   keyboard.emit('keydown-ENTER', { target: { tagName: 'CANVAS' } });
   multiplayer.update(20, 10);
-  assert.equal(p2.player.body.velocity.y, -600);
+  assert.equal(p2.player.body.velocity.y, -240);
   assert.deepEqual(events, ['p1', 'p2']);
-  assert.equal(nodes['p2-dash-status'].textContent, 'Dashing!');
+  assert.equal(nodes['p2-strike-status'].textContent, 'Striking!');
 });
 
-test('speed pickup multipliers are applied by runner after direction and dash calculation', () => {
+test('speed pickup multipliers are applied by runner after direction and strike calculation', () => {
   const { scene, multiplayer, boosts, boostCalls } = setup();
   scene.keys.D.isDown = scene.cursors.left.isDown = true;
   boosts.p2 = 1.5;
@@ -174,7 +174,7 @@ test('real per-player lives have separate immunity and HUDs, and knockouts do no
   assert.equal(p1.player.body.enable, false);
   assert.equal(p1.player.alpha, 0.45);
   assert.equal(p1.abilities.disabled, true);
-  assert.equal(p1.abilities.dash(2000), false);
+  assert.equal(p1.abilities.strike(2000), false);
   assert.equal(multiplayer.getRunners()[0], p2);
   assert.equal(multiplayer.getRunner('p1'), p1);
   scene.keys.W.isDown = scene.cursors.right.isDown = true;
@@ -186,7 +186,7 @@ test('real per-player lives have separate immunity and HUDs, and knockouts do no
   assert.equal(multiplayer.hit(p2, 2000).allOut, true);
   assert.equal(multiplayer.getRunners().length, 0);
   assert.equal(p2.abilities.scene.finished, true);
-  assert.equal(p2.abilities.dash(3000), false);
+  assert.equal(p2.abilities.strike(3000), false);
 });
 
 test('scores remain per player, render only on changes, and summaries report wins and ties', () => {
@@ -229,7 +229,7 @@ test('pause and finish stop motion, ignore hits/scores, and use the same active 
   assert.equal(p1.player.alpha, alpha);
   assert.equal(multiplayer.hit(p2, 200).damaged, false);
   assert.equal(multiplayer.record(50, 'p1'), 0);
-  assert.equal(p2.abilities.dash(200), false);
+  assert.equal(p2.abilities.strike(200), false);
   scene.paused = false;
   multiplayer.setPaused(false);
   multiplayer.update(200, 16);
@@ -261,7 +261,7 @@ test('destroy releases only P2 resources and restores status visibility once', (
   assert.equal(scene.player.destroyed, 0);
   assert.equal(scene.lives.hit(2000).damaged, true);
   assert.equal(nodes['p2-lives-status'].hidden, true);
-  assert.equal(nodes['p2-dash-status'].hidden, true);
+  assert.equal(nodes['p2-strike-status'].hidden, true);
   assert.equal(multiplayer.getRunners().length, 0);
   const writes = nodes['multiplayer-status'].writes;
   multiplayer.update(3000, 16);

@@ -32,21 +32,23 @@ players, audio, voice and mission details. Opening settings pauses the round;
 closing it returns focus to play. Apply & new round applies changed settings.
 Space and arrow keys never scroll the play screen, including during cooldown.
 
-- WASD / arrows move; Space or Shift performs the samurai dash/slice; F shoots. P or Escape pauses; R restarts.
-- Touch D-pad and Dash appear on narrow screens or touch devices.
+- WASD / arrows move; Space or Shift performs the stationary sword strike; F shoots. P or Escape pauses; R restarts.
+- Touch D-pad and Strike appear on narrow screens or touch devices.
 - Choose Easy / Normal / Hard, 1–12 base creatures and 1, 3, or 5 lives, then New round. Difficulty scales creature count/speed and starting time (80/60/48 seconds).
 - Local 2P: P1 WASD, Space/Shift slice, F shoot; P2 arrows, Enter slice, L shoot.
   Separate scores, coin combos and lives; shared timer. M switches mode and restarts.
   A knocked-out player stays out while the other continues; highest score wins.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
+- Sword kills reset the attack cooldown immediately. A missed strike has a 1-second cooldown; no dash or movement boost.
+- Chain kills within 2.5 seconds for double/triple-kill feedback. A missed strike breaks the chain. Shooting kills also reset that player's shot cooldown.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
-- Collect five coins, dash three times, and reach level three to complete missions.
+- Collect five coins, strike three times, and reach level three to complete missions.
 - Special shield coins block one hit; magnets attract nearby coins; speed coins grant 1.6× speed for 5 seconds. Effects belong to the collecting player.
 - Hila's chasers pursue the nearest player, patrollers pace a line, and zippers bounce fast.
   Slicing/shooting them awards 5/3/10 points; they respawn after 3 active seconds.
 - An untouched close call earns +2 points. Combat and close calls never add coin time.
-- One creature at a time can turn angry/red and chase for a short burst.
+- One creature at a time can turn angry/red and chase briefly, now at half the previous chase speed (maximum 180 px/s).
 - Fast chains trigger WOW / YOU SUPER, reward floats and funny voice reactions;
   slow gaps can trigger playful comments. Voice/teasing are optional controls.
 - Pause, focus loss, restart and game over cleanly stop active gameplay effects.
@@ -62,9 +64,9 @@ agents with branches/worktrees, and review and test before merging. See
 ## Architecture and checks
 
 The Phaser scene coordinates focused components: `CoinDashRound` owns active time
-and levels; lives, dash, scoring, touch, arena, reactions, missions, power-ups and
+and levels; lives, strikes, scoring, touch, arena, reactions, missions, power-ups and
 rage own their state and cleanup. Multiplayer owns per-player state; combat owns
-projectiles/respawns; scoring owns the single points ledger. Modules use `player-dash` and `special-coin`
+projectiles/respawns; scoring owns the single points ledger. Modules use `player-strike` and `special-coin`
 events instead of replacing each other's methods. Hila's enemy, combat, difficulty, multiplayer and close-call branches were ported
 into the shared component architecture with coauthor credit. The optional rage overlay takes temporary velocity priority after her update.
 
