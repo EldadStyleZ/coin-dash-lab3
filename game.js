@@ -131,6 +131,24 @@
       el('pause-game').disabled = false;
       el('game-status').textContent = 'Round started. Collect gold and dodge the swarm!';
       this.updateHud();
+      // HUD wrapping, touch controls and browser chrome can resize the parent
+      // without a window resize. Keep Phaser's FIT bounds in sync with the arena.
+      if (window.ResizeObserver) {
+        let resizeFrame = 0;
+        const observer = new window.ResizeObserver(() => {
+          if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+          resizeFrame = window.requestAnimationFrame(() => {
+            resizeFrame = 0;
+            this.scale.getParentBounds();
+            this.scale.refresh();
+          });
+        });
+        observer.observe(el('game'));
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+          observer.disconnect();
+          if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+        });
+      }
     }
     isSpawnClear(x, y, radius = 20) { return this.arena.isClear(x, y, radius); }
     getRunners() {
