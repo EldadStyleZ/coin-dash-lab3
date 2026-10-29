@@ -50,14 +50,18 @@
     }
   }
 
-  function magnetPosition(coin, player, delta) {
+  function magnetPosition(coin, player, delta, isSpawnClear) {
     const unchanged = { x: coin.x, y: coin.y };
     if (![coin.x, coin.y, player.x, player.y, delta].every(Number.isFinite) || delta <= 0) return unchanged;
     const dx = player.x - coin.x, dy = player.y - coin.y;
     const distance = Math.hypot(dx, dy);
     if (distance === 0 || distance > 140) return unchanged;
-    const step = Math.min(distance, 260 * delta / 1000);
-    return { x: coin.x + dx / distance * step, y: coin.y + dy / distance * step };
+    // With arena geometry, short steps plus a radius check prevent tunnelling
+    // through even thin walls. Older scenes without the hook keep their speed.
+    const step = Math.min(distance, 260 * delta / 1000, typeof isSpawnClear === 'function' ? 12 : Infinity);
+    const position = { x: coin.x + dx / distance * step, y: coin.y + dy / distance * step };
+    if (typeof isSpawnClear === 'function' && !isSpawnClear(position.x, position.y, 12)) return unchanged;
+    return position;
   }
 
   class CoinDashPowerups {
@@ -76,20 +80,40 @@
       const width = Number.isFinite(config.width) ? Math.max(100, config.width) : 800;
       const height = Number.isFinite(config.height) ? Math.max(140, config.height) : 500;
       const bounds = { left: 44, right: width - 44, top: 76, bottom: height - 44 };
+      const valid = (x, y) => Math.hypot(x - player.x, y - player.y) >= 85
+        && (typeof this.scene.isSpawnClear !== 'function' || this.scene.isSpawnClear(x, y, 20));
       for (let attempt = 0; attempt < 16; attempt++) {
         const x = bounds.left + Math.random() * (bounds.right - bounds.left);
         const y = bounds.top + Math.random() * (bounds.bottom - bounds.top);
-        if (Math.hypot(x - player.x, y - player.y) >= 85) return { x, y };
+        if (valid(x, y)) return { x, y };
       }
       // A deterministic fallback avoids an unbounded retry on cramped arenas.
-      return [
+      const corners = [
         { x: bounds.left, y: bounds.top }, { x: bounds.right, y: bounds.top },
         { x: bounds.left, y: bounds.bottom }, { x: bounds.right, y: bounds.bottom }
-      ].sort((a, b) => Math.hypot(b.x - player.x, b.y - player.y) - Math.hypot(a.x - player.x, a.y - player.y))[0];
+      ].sort((a, b) => Math.hypot(b.x - player.x, b.y - player.y) - Math.hypot(a.x - player.x, a.y - player.y));
+      for (const point of corners) if (valid(point.x, point.y)) return point;
+      const columns = Math.min(32, Math.max(1, Math.ceil((bounds.right - bounds.left) / 24)));
+      const rows = Math.min(32, Math.max(1, Math.ceil((bounds.bottom - bounds.top) / 24)));
+      for (let row = 0; row <= rows; row++) {
+        for (let column = 0; column <= columns; column++) {
+          const x = bounds.left + column / columns * (bounds.right - bounds.left);
+          const y = bounds.top + row / rows * (bounds.bottom - bounds.top);
+          if (valid(x, y)) return { x, y };
+        }
+      }
+      return null;
     }
 
     spawnPickup() {
-      const { x, y } = this.spawnPosition();
+      const position = this.spawnPosition();
+      if (!position) {
+        // Skip this scheduled coin if the arena has no safe spot, never put it
+        // inside a wall or loop forever. The following scheduled spawn remains.
+        this.state.pickup = null;
+        return;
+      }
+      const { x, y } = position;
       const model = this.state.pickup;
       const color = model.type === 'shield' ? 0x71e8ce : 0xc299ff;
       const shape = this.scene.add.circle(x, y, 17, 0xb98a31, 1).setStrokeStyle(3, color);
@@ -124,7 +148,9 @@
       if (this.state.magnetActive(time) && this.scene.coin?.active !== false) {
         const coin = this.scene.coin;
         if (coin) {
-          const position = magnetPosition(coin, this.scene.player, delta);
+          const isSpawnClear = typeof this.scene.isSpawnClear === 'function'
+            ? (x, y, radius) => this.scene.isSpawnClear(x, y, radius) : undefined;
+          const position = magnetPosition(coin, this.scene.player, delta, isSpawnClear);
           if (position.x !== coin.x || position.y !== coin.y) {
             coin.setPosition(position.x, position.y);
             coin.body?.reset(position.x, position.y);

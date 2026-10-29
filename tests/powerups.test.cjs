@@ -145,3 +145,61 @@ test('collecting a special coin emits exactly once with its type and position', 
   assert.equal(powerups.state.shieldReady, true);
   powerups.destroy();
 });
+
+test('arena query caps magnet steps to 12px and prevents entering or crossing a wall', () => {
+  const player = { x: 100, y: 0 };
+  const clear = (x, y, radius) => {
+    assert.equal(radius, 12);
+    return x + radius < 40 || x - radius > 45;
+  };
+  let coin = { x: 0, y: 0 };
+  coin = magnetPosition(coin, player, 1000, clear);
+  assert.deepEqual(coin, { x: 12, y: 0 });
+  for (let i = 0; i < 20; i++) coin = magnetPosition(coin, player, 1000, clear);
+  assert.deepEqual(coin, { x: 24, y: 0 }, 'large deltas cannot tunnel through the wall');
+  assert.deepEqual(magnetPosition({ x: 0, y: 0 }, player, 1000), { x: 100, y: 0 }, 'legacy no-wall behavior is retained');
+});
+
+test('blocked random points and corners use a finite safe grid fallback', () => {
+  const { powerups, scene } = setup();
+  scene.player.y = 266;
+  let queries = 0;
+  scene.isSpawnClear = (x, y, radius) => {
+    queries++;
+    assert.equal(radius, 20);
+    return x >= 250 && x <= 300 && y >= 150 && y <= 200;
+  };
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0.5;
+    const point = powerups.spawnPosition();
+    assert(point);
+    assert(scene.isSpawnClear(point.x, point.y, 20));
+    assert(queries > 4 && queries <= 1109);
+  } finally { Math.random = originalRandom; }
+});
+
+test('completely blocked arenas skip a special coin without creating world objects', () => {
+  const { powerups, scene, objects } = setup();
+  let queries = 0;
+  scene.isSpawnClear = () => { queries++; return false; };
+  powerups.update(6000, 16);
+  assert.equal(powerups.pickup, null);
+  assert.equal(powerups.state.pickup, null);
+  assert.equal(powerups.state.nextSpawnAt, 18000);
+  assert.equal(objects.length, 0);
+  assert(queries <= 1109);
+  powerups.destroy();
+});
+
+test('scene adapter passes its geometry query to coin attraction', () => {
+  const { powerups, scene } = setup();
+  powerups.state.magnetUntil = 8000;
+  let queries = 0;
+  scene.isSpawnClear = (x, y, radius) => { queries++; assert.equal(radius, 12); return false; };
+  powerups.update(1000, 100);
+  assert.equal(scene.coin.x, 480);
+  assert.equal(scene.coin.body.resets, 0);
+  assert.equal(queries, 1);
+  powerups.destroy();
+});
