@@ -41,19 +41,22 @@ Space and arrow keys never scroll the play screen, including during cooldown.
   A knocked-out player stays out while the other continues; highest score wins.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
-- Sword kills require physical contact during the dash, as in the original game. A kill resets the attack cooldown immediately. A missed strike has a 1-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash. The original fading afterimages and diagonal hit slash are preserved.
+- Sword kills require physical contact during the dash, as in the original game. A kill resets the attack cooldown immediately. A missed strike has a 1.8-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash. The original fading afterimages and diagonal hit slash are preserved.
 - Chain kills within 2.5 seconds for double/triple-kill feedback. A missed strike breaks the chain. Shooting kills also reset that player's shot cooldown.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
-- Collect five coins, strike three times, and reach level three to complete missions.
+- Collect five coins, land three sword kills, and reach level three to complete missions.
 - Special shield coins block one hit; magnets attract nearby coins; speed coins grant 1.6× speed for 5 seconds. Effects belong to the collecting player.
 - Hila's chasers pursue the nearest player, patrollers pace a line, and zippers bounce fast.
   Slicing/shooting them awards 5/3/10 points; they respawn after 3 active seconds.
 - An untouched close call earns +2 points. Combat and close calls never add coin time.
 - One creature at a time can turn angry/red and chase briefly, now at half the previous chase speed (maximum 180 px/s).
-- Fast coin milestones trigger playful lines such as “Coin vacuum: activated!”;
-  slow gaps get occasional nudges such as “That coin has started a book club.”
+- Three, six and ten quick coins by the same player trigger playful lines such as “Coin vacuum: activated!”;
+  gaps without either coins or kills get occasional nudges such as “That coin has started a book club.”
   Captions wait at least 3.5 seconds, voices 14 seconds, and slow nudges 25 seconds.
-  Every coin keeps its reward popup; at most six are visible together. Voice/teasing
+  Coin streaks expire after 2 seconds; kill chains after 2.5 seconds. Missed sword
+  attacks and damage reset that player's performance streaks and clear obsolete
+  praise. Other players' streaks remain independent. The sword mission counts
+  actual kills rather than button presses. Every coin keeps its reward popup; at most six are visible together. Voice/teasing
   are optional controls. Softer coin chirps vary in pitch, misses get a quiet boing,
   and sound bursts are limited to eight simultaneous effect voices.
 - Pause, focus loss, restart and game over cleanly stop active gameplay effects.

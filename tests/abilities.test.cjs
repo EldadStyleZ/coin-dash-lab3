@@ -36,14 +36,15 @@ test('Shift is disabled while Space starts the sword dash', () => {
   assert.equal(ability.strikeId, 1);
   assert.equal(ability.velocity(0, 0, 0).x, 600);
 });
-test('miss cooldown lasts exactly one active second from strike start', () => {
+test('miss cooldown lasts 1.8 active seconds from strike start', () => {
   const { ability, status } = setup();
   assert.equal(ability.strike(0), true);
   assert.equal(ability.strikeEndsAt, 180);
   assert.equal(status.textContent, 'Striking!');
   assert.equal(ability.strike(180), false);
-  assert.equal(ability.strike(999), false);
-  assert.equal(ability.strike(1000), true);
+  assert.equal(ability.strike(1000), false); // Old recovery point must remain locked.
+  assert.equal(ability.strike(1799), false);
+  assert.equal(ability.strike(1800), true);
   assert.equal(ability.strikeId, 2);
 });
 test('synchronous kill reset survives strike() returning and stale reset cannot unlock newer swing', () => {

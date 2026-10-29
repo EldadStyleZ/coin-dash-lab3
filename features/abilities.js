@@ -2,7 +2,7 @@
   'use strict';
   const STRIKE_DURATION_MS = 180;
   const SWORD_DASH_MULTIPLIER = 2.5;
-  const MISS_COOLDOWN_MS = 1000;
+  const MISS_COOLDOWN_MS = 1800;
 
   class CoinDashAbilities {
     constructor(scene, options = {}) {

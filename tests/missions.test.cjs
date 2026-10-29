@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { EventEmitter } = require('node:events');
 const source = fs.readFileSync(path.join(__dirname, '../features/missions.js'), 'utf8');
 
 function setup(withDom = true) {
@@ -19,7 +20,7 @@ function setup(withDom = true) {
   const messages = [];
   const sounds = [];
   const scene = {
-    level: 1, runTime: 0, score: 0, paused: false, finished: false,
+    events: new EventEmitter(), level: 1, runTime: 0, score: 0, paused: false, finished: false,
     reactions: { announce(message) { messages.push(message); } },
     audio: { play(action) { sounds.push(action); } }
   };
@@ -30,9 +31,26 @@ test('round begins with three finite visible goals and no reward', () => {
   const h = setup();
   new h.Missions(h.scene);
   assert.match(h.element.textContent, /Collect 5 coins: 0\/5/);
-  assert.match(h.element.textContent, /Strike 3 times: 0\/3/);
+  assert.match(h.element.textContent, /Land 3 sword kills: 0\/3/);
   assert.match(h.element.textContent, /Reach level 3: 1\/3/);
   assert.equal(h.messages.length, 0);
+});
+
+test('button presses and misses never earn sword praise; only actual sword kills advance the goal', () => {
+  const h = setup();
+  const missions = new h.Missions(h.scene);
+  for (let i = 0; i < 10; i++) {
+    h.scene.events.emit('player-strike', { runnerId: 'p1', strikeId: i + 1 });
+    h.scene.events.emit('strike-missed', { runnerId: 'p1', time: i * 1800 });
+    h.scene.events.emit('enemy-killed', { runnerId: 'p1', cause: 'shot' });
+  }
+  assert.equal(missions.goals[1].progress, 0);
+  assert.equal(h.messages.length, 0);
+  for (let i = 0; i < 3; i++) h.scene.events.emit('enemy-killed', { runnerId: 'p1', cause: 'enemy' });
+  assert.equal(missions.goals[1].complete, true);
+  assert.deepEqual(h.messages, ['Sword goal complete: 3 kills.']);
+  missions.destroy();
+  assert.equal(h.scene.events.listenerCount('enemy-killed'), 0);
 });
 
 test('each goal completes once and all goals celebrate once', () => {
@@ -41,7 +59,7 @@ test('each goal completes once and all goals celebrate once', () => {
   for (let i = 0; i < 20; i++) missions.coin();
   assert.equal(h.messages.length, 1);
   assert.match(h.element.textContent, /✓ Collect 5 coins/);
-  for (let i = 0; i < 20; i++) missions.strike();
+  for (let i = 0; i < 20; i++) missions.swordKill();
   assert.equal(h.messages.length, 2);
   h.scene.level = 3;
   for (let i = 0; i < 100; i++) missions.update(i * 16);
@@ -58,13 +76,13 @@ test('paused and finished rounds cannot progress or trigger feedback', () => {
   const before = h.element.textContent;
   h.scene.paused = true;
   h.scene.level = 9;
-  for (let i = 0; i < 10; i++) { missions.coin(); missions.strike(); missions.update(10000); }
+  for (let i = 0; i < 10; i++) { missions.coin(); missions.swordKill(); missions.update(10000); }
   assert.equal(h.element.textContent, before);
   assert.equal(missions.lastTime, 0);
   assert.equal(h.messages.length, 0);
   h.scene.paused = false;
   h.scene.finished = true;
-  missions.coin(); missions.strike(); missions.update(10000);
+  missions.coin(); missions.swordKill(); missions.update(10000);
   assert.equal(h.element.textContent, before);
   assert.equal(h.messages.length, 0);
 });
@@ -77,7 +95,7 @@ test('new round starts fresh and old destroyed instance cannot touch its UI', ()
   old.destroy();
   const restarted = new h.Missions(h.scene);
   const resetText = h.element.textContent;
-  old.coin(); old.strike(); old.update(100);
+  old.coin(); old.swordKill(); old.update(100);
   assert.equal(h.element.textContent, resetText);
   assert.equal(restarted.goals[0].progress, 0);
   for (let i = 0; i < 5; i++) restarted.coin();
@@ -103,7 +121,7 @@ test('missions do not change points or round time and work without optional hook
   const scene = { score: 42, runTime: 1200, level: 3 };
   const missions = new h.Missions(scene);
   for (let i = 0; i < 5; i++) missions.coin();
-  for (let i = 0; i < 3; i++) missions.strike();
+  for (let i = 0; i < 3; i++) missions.swordKill();
   missions.update(1200);
   assert.equal(missions.allComplete, true);
   assert.equal(scene.score, 42);

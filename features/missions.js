@@ -9,13 +9,17 @@
       this.lastTime = 0;
       this.allComplete = false;
       this.goals = [
-        { id: 'coins', label: 'Collect 5 coins', target: 5, progress: 0, complete: false, praise: 'Coin collector! Five coins collected.' },
-        { id: 'strikes', label: 'Strike 3 times', target: 3, progress: 0, complete: false, praise: 'Sword master! Three strikes.' },
-        { id: 'level', label: 'Reach level 3', target: 3, progress: 1, complete: false, praise: 'Level three reached! Keep it up.' }
+        { id: 'coins', label: 'Collect 5 coins', target: 5, progress: 0, complete: false, praise: 'Coin goal complete: 5 collected.' },
+        { id: 'sword-kills', label: 'Land 3 sword kills', target: 3, progress: 0, complete: false, praise: 'Sword goal complete: 3 kills.' },
+        { id: 'level', label: 'Reach level 3', target: 3, progress: 1, complete: false, praise: 'Level 3 reached.' }
       ];
       this.element = root.document ? root.document.getElementById('mission-status') : null;
       this.lastRendered = '';
       if (this.element) this.element.setAttribute('aria-live', 'polite');
+      this.onKill = event => {
+        if (event?.cause === 'enemy') this.swordKill();
+      };
+      this.scene.events?.on?.('enemy-killed', this.onKill);
       this.render();
     }
 
@@ -28,9 +32,9 @@
       this.progress('coins', 1);
     }
 
-    strike() {
+    swordKill() {
       if (!this.active()) return;
-      this.progress('strikes', 1);
+      this.progress('sword-kills', 1);
     }
 
     progress(id, amount) {
@@ -67,7 +71,7 @@
       }
       if (!this.allComplete && this.goals.every(goal => goal.complete)) {
         this.allComplete = true;
-        this.feedback('All three goals complete! Arena champion!');
+        this.feedback('All three goals complete!');
       }
     }
 
@@ -84,6 +88,8 @@
     }
 
     destroy() {
+      if (this.destroyed) return;
+      this.scene.events?.off?.('enemy-killed', this.onKill);
       this.destroyed = true;
       this.element = null;
       this.scene = null;

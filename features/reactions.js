@@ -5,7 +5,8 @@
   let gestureUnlocked = false;
   const slowComments = ['The coins are getting emotionally attached.', 'That coin has started a book club.', 'Your coin vacuum is on its lunch break.'];
   const quickComments = ['Coin vacuum: activated!', 'Your pockets have turbo mode.', 'That coin never saw you coming.', 'Caffeinated coin collector!', 'The piggy bank is doing a happy dance.'];
-  const CHAIN_MILESTONES = new Set([2, 5, 10]);
+  const CHAIN_MILESTONES = new Set([3, 6, 10]);
+  const KILL_MILESTONES = new Set([2, 3, 5]);
   const CAPTION_COOLDOWN_MS = 3500;
   const VOICE_COOLDOWN_MS = 14000;
 
@@ -13,8 +14,8 @@
     constructor(scene) {
       this.scene = scene || {};
       this.time = 0;
-      this.lastCoinTime = null;
-      this.quickChain = 0;
+      this.performance = new Map();
+      this.lastSuccessTime = 0;
       this.slowNudged = false;
       this.slowIndex = 0;
       this.quickIndex = 0;
@@ -28,9 +29,11 @@
       this.lastSpokenAt = -Infinity;
       this.captionText = '';
       this.captionUntil = 0;
+      this.captionMeta = null;
       this.rewards = [];
       this.cleanups = [];
       this.utterance = null;
+      this.utteranceMeta = null;
       this.voice = null;
       this.synth = root.speechSynthesis;
       this.doc = root.document;
@@ -45,6 +48,95 @@
       if (this.synth && typeof this.synth.addEventListener === 'function') {
         this.listen(this.synth, 'voiceschanged', () => this.refreshVoice());
       }
+      if (this.scene.events?.on && this.scene.events?.off) {
+        const events = this.scene.events;
+        const listen = (name, callback) => {
+          events.on(name, callback);
+          this.cleanups.push(() => events.off(name, callback));
+        };
+        listen('enemy-killed', event => this.killed(event || {}));
+        listen('strike-missed', event => this.failed(event || {}));
+        listen('player-hit', event => { if (event?.damaged === true) this.failed(event); });
+      }
+    }
+
+    // Legacy P1 readouts remain useful to core diagnostics; gameplay state is
+    // per runner, so alternating P1/P2 collections never form a shared streak.
+    get quickChain() { return this.performance.get('p1')?.coinCount || 0; }
+    get lastCoinTime() { return this.performance.get('p1')?.lastCoinTime ?? null; }
+
+    runnerState(runnerId) {
+      if (runnerId !== 'p1' && runnerId !== 'p2') return null;
+      if (!this.performance.has(runnerId)) this.performance.set(runnerId, {
+        coinCount: 0, lastCoinTime: null, killCount: 0, lastKillTime: null
+      });
+      return this.performance.get(runnerId);
+    }
+
+    clearCaption() {
+      this.captionText = '';
+      this.captionMeta = null;
+      if (this.caption) { this.caption.textContent = ''; this.caption.hidden = true; }
+    }
+
+    clearMatching(matches) {
+      if (this.captionMeta && matches(this.captionMeta)) this.clearCaption();
+      if (this.utteranceMeta && matches(this.utteranceMeta)) this.cancelSpeech();
+    }
+
+    clearPerformance(runnerId, kind) {
+      this.clearMatching(meta => meta.runnerId === runnerId
+        && (meta.kind === 'coin' || meta.kind === 'kill') && (!kind || meta.kind === kind));
+    }
+
+    expireStreaks() {
+      for (const [runnerId, state] of this.performance) {
+        if (state.lastCoinTime !== null && this.time - state.lastCoinTime >= 2000) {
+          state.coinCount = 0;
+          state.lastCoinTime = null;
+          this.clearPerformance(runnerId, 'coin');
+        }
+        if (state.lastKillTime !== null && this.time - state.lastKillTime >= 2500) {
+          state.killCount = 0;
+          state.lastKillTime = null;
+          this.clearPerformance(runnerId, 'kill');
+        }
+      }
+    }
+
+    success() {
+      this.lastSuccessTime = this.time;
+      this.slowNudged = false;
+      this.clearMatching(meta => meta.kind === 'idle');
+    }
+
+    failed({ runnerId = 'p1', time = this.scene.runTime } = {}) {
+      if (!this.accepts(time)) return;
+      const state = this.runnerState(runnerId);
+      if (!state) return;
+      this.time = time;
+      this.expireStreaks();
+      state.coinCount = state.killCount = 0;
+      state.lastCoinTime = state.lastKillTime = null;
+      this.clearPerformance(runnerId);
+    }
+
+    killed({ runnerId = 'p1', time, cause, count } = {}) {
+      if (!this.accepts(time) || !['enemy', 'shot'].includes(cause)
+        || !Number.isSafeInteger(count) || count < 1) return;
+      const state = this.runnerState(runnerId);
+      if (!state || (state.lastKillTime === time && state.killCount === count)) return;
+      this.time = time;
+      this.expireStreaks();
+      if (count <= state.killCount) this.clearPerformance(runnerId, 'kill');
+      state.killCount = count;
+      state.lastKillTime = time;
+      this.success();
+      if (KILL_MILESTONES.has(count)) {
+        const joke = count === 2 ? 'Double cleanup!' : count === 3 ? 'The swarm is reconsidering.' : 'Swarm meeting postponed.';
+        this.showCaption(`${runnerId.toUpperCase()}: ${count} kill chain! ${joke}`, 'celebration', { kind: 'kill', runnerId });
+      }
+      this.render();
     }
 
     listen(target, name, callback, options) {
@@ -102,7 +194,7 @@
         : 'Captions ready · no local voice available';
     }
 
-    speak(text) {
+    speak(text, meta = { kind: 'announcement' }) {
       if (!this.voiceEnabled || !gestureUnlocked || !this.voice || !this.synth
         || typeof root.SpeechSynthesisUtterance !== 'function' || this.paused
         || this.scene.finished || this.destroyed || this.time - this.lastSpokenAt < VOICE_COOLDOWN_MS
@@ -114,13 +206,14 @@
       utterance.pitch = 1.12;
       utterance.volume = 0.55;
       utterance.onend = utterance.onerror = () => {
-        if (this.utterance === utterance) this.utterance = null;
+        if (this.utterance === utterance) { this.utterance = null; this.utteranceMeta = null; }
       };
       this.utterance = utterance;
+      this.utteranceMeta = meta;
       try {
         this.synth.speak(utterance);
         this.lastSpokenAt = this.time;
-      } catch (_) { this.utterance = null; }
+      } catch (_) { this.utterance = null; this.utteranceMeta = null; }
     }
 
     cancelSpeech() {
@@ -129,6 +222,7 @@
       // this module owns the current utterance, never unrelated browser speech.
       const own = this.utterance;
       this.utterance = null;
+      this.utteranceMeta = null;
       own.onend = own.onerror = null;
       try { this.synth.cancel(); } catch (_) { /* Captions work without speech. */ }
     }
@@ -138,7 +232,7 @@
         && Number.isFinite(time) && time >= this.time;
     }
 
-    showCaption(text, tone = 'celebration') {
+    showCaption(text, tone = 'celebration', meta = { kind: 'announcement' }) {
       if (!this.accepts(this.time) || this.time - this.lastCaptionAt < CAPTION_COOLDOWN_MS) return false;
       for (const [message, time] of this.recentCaptions) {
         if (this.time - time >= 20000) this.recentCaptions.delete(message);
@@ -147,13 +241,14 @@
       this.lastCaptionAt = this.time;
       this.recentCaptions.set(text, this.time);
       this.captionText = text;
+      this.captionMeta = meta;
       this.captionUntil = this.time + 2300;
       if (this.caption) {
         this.caption.textContent = text;
         this.caption.setAttribute('data-tone', tone);
         this.caption.hidden = false;
       }
-      this.speak(text);
+      this.speak(text, meta);
       return true;
     }
 
@@ -165,22 +260,26 @@
     nudge() {
       if (!this.sarcasmEnabled || this.slowNudged || this.time - this.lastNudgeAt < 25000) return;
       this.slowNudged = true;
-      if (this.showCaption(slowComments[this.slowIndex % slowComments.length], 'playful')) {
+      if (this.showCaption(slowComments[this.slowIndex % slowComments.length], 'playful', { kind: 'idle' })) {
         this.slowIndex++;
         this.lastNudgeAt = this.time;
       }
     }
 
-    coin(time, { points = 1, x, y, bonusSeconds = 3 } = {}) {
+    coin(time, { points = 1, x, y, bonusSeconds = 3, runnerId = 'p1' } = {}) {
       if (!this.accepts(time)) return;
       this.time = time;
-      const gap = this.lastCoinTime === null ? null : time - this.lastCoinTime;
-      this.quickChain = gap !== null && gap < 2000 ? this.quickChain + 1 : 1;
-      if (CHAIN_MILESTONES.has(this.quickChain)) {
-        if (this.showCaption(quickComments[this.quickIndex % quickComments.length])) this.quickIndex++;
-      } else if (gap !== null && gap >= 12000) this.nudge();
-      this.lastCoinTime = time;
-      this.slowNudged = false;
+      this.expireStreaks();
+      this.success();
+      const state = this.runnerState(runnerId);
+      if (state) {
+        state.coinCount++;
+        state.lastCoinTime = time;
+        if (CHAIN_MILESTONES.has(state.coinCount)) {
+          const text = `${runnerId.toUpperCase()}: ${state.coinCount} quick coins! ${quickComments[this.quickIndex % quickComments.length]}`;
+          if (this.showCaption(text, 'celebration', { kind: 'coin', runnerId })) this.quickIndex++;
+        }
+      }
       this.addReward({ points, x, y, bonusSeconds });
       this.render();
     }
@@ -216,8 +315,7 @@
 
     render() {
       if (this.captionText && this.time >= this.captionUntil) {
-        this.captionText = '';
-        if (this.caption) { this.caption.textContent = ''; this.caption.hidden = true; }
+        this.clearCaption();
       }
       this.rewards = this.rewards.filter(reward => {
         const progress = (this.time - reward.start) / 1100;
@@ -238,14 +336,19 @@
       if (this.scene.finished) { this.setPaused(true); return; }
       if (!this.accepts(time)) return;
       this.time = time;
+      this.expireStreaks();
       this.render();
-      if (time - (this.lastCoinTime === null ? 0 : this.lastCoinTime) >= 12000) this.nudge();
+      if (time - this.lastSuccessTime >= 12000) this.nudge();
     }
 
     setPaused(paused) {
       this.paused = Boolean(paused);
       if (this.paused) this.cancelSpeech();
-      if (this.layer && this.scene.finished) this.layer.hidden = true;
+      if (this.scene.finished) {
+        this.performance.clear();
+        this.clearCaption();
+        if (this.layer) this.layer.hidden = true;
+      }
     }
 
     destroy() {
@@ -258,6 +361,8 @@
       this.layer?.remove();
       this.controls?.remove();
       this.captionText = '';
+      this.captionMeta = null;
+      this.performance.clear();
       this.recentCaptions.clear();
     }
   }
