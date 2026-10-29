@@ -84,6 +84,12 @@
       this.placeCoin();
       // Native settings widgets keep their arrow keys; only the arena suppresses scrolling.
       this.input.keyboard.removeCapture(['UP', 'DOWN', 'LEFT', 'RIGHT', 'SPACE', 'SHIFT', 'ENTER', 'F', 'L']);
+      // Phaser receives the event first at window. Cancelling it on #game would
+      // make Phaser ignore Space and arrows before they reach its keyboard listener.
+      const onArenaKey = event => {
+        if (el('game').contains(event.target) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
+      };
+      window.addEventListener('keydown', onArenaKey);
       const ignoresInput = event => /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target?.tagName || '');
       const onRestart = event => { if (!ignoresInput(event)) this.restartRound(); };
       const onPause = event => { if (!ignoresInput(event) && !event.repeat) this.setPaused(!this.paused); };
@@ -103,6 +109,7 @@
         this.input.keyboard.off('keydown-P', onPause);
         this.input.keyboard.off('keydown-ESC', onPause);
         this.input.keyboard.off('keydown-M', onMode);
+        window.removeEventListener('keydown', onArenaKey);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
         this.events.off('player-dash', onDash);
         this.events.off('special-coin', onSpecialCoin);
@@ -307,9 +314,6 @@
     scene: CoinDash
   });
   const scene = () => window.coinDashGame.scene.getScene('CoinDash');
-  el('game').addEventListener('keydown', event => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
-  });
   el('round-settings').addEventListener('submit', event => { event.preventDefault(); scene().restartRound(); el('game').focus({ preventScroll: true }); });
   el('pause-game').addEventListener('click', () => { const active = scene(); active.setPaused(!active.paused); el('game').focus({ preventScroll: true }); });
 })();
