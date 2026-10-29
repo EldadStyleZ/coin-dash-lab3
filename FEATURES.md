@@ -260,3 +260,9 @@ Both sides update their own status files after milestones and record failed chec
   afterimages; no console warnings/errors. Reduced-motion, both players, pause,
   expiry and cleanup checked. Lunge timing, Shift removal, combos/reload and
   miss recovery are unchanged. Versioned combat script prevents stale animation.
+
+## Restore original kill detection
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| CONTACT-KILLS | Restore contact-only sword dash kills | Eldad coordinator | implementing | eldad/restore-contact-kills; features/combat.js, tests/combat.test.cjs, index.html, README.md, docs/feature-contract.md | User rejected the unsolicited ranged hit logic. Remove attack-start/per-frame proximity kills and facing arc. Original physics overlap during active dash triggers kills; preserve only requested cooldown reset/miss delay plus existing animation and controls. |
