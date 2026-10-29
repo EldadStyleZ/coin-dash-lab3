@@ -34,6 +34,7 @@ Space and arrow keys never scroll the play screen, including during cooldown.
 
 - WASD / arrows move; Space or Shift performs the stationary sword strike; F shoots. P or Escape pauses; R restarts.
 - Touch D-pad and Strike appear on narrow screens or touch devices.
+  Landscape phones place the controls beside the arena, with 44px minimum touch targets.
 - Choose Easy / Normal / Hard, 1–12 base creatures and 1, 3, or 5 lives, then New round. Difficulty scales creature count/speed and starting time (80/60/48 seconds).
 - Local 2P: P1 WASD, Space/Shift slice, F shoot; P2 arrows, Enter slice, L shoot.
   Separate scores, coin combos and lives; shared timer. M switches mode and restarts.
@@ -49,8 +50,12 @@ Space and arrow keys never scroll the play screen, including during cooldown.
   Slicing/shooting them awards 5/3/10 points; they respawn after 3 active seconds.
 - An untouched close call earns +2 points. Combat and close calls never add coin time.
 - One creature at a time can turn angry/red and chase briefly, now at half the previous chase speed (maximum 180 px/s).
-- Fast chains trigger WOW / YOU SUPER, reward floats and funny voice reactions;
-  slow gaps can trigger playful comments. Voice/teasing are optional controls.
+- Fast coin milestones trigger playful lines such as “Coin vacuum: activated!”;
+  slow gaps get occasional nudges such as “That coin has started a book club.”
+  Captions wait at least 3.5 seconds, voices 14 seconds, and slow nudges 25 seconds.
+  Every coin keeps its reward popup; at most six are visible together. Voice/teasing
+  are optional controls. Softer coin chirps vary in pitch, misses get a quiet boing,
+  and sound bursts are limited to eight simultaneous effect voices.
 - Pause, focus loss, restart and game over cleanly stop active gameplay effects.
 
 ## Pair collaboration

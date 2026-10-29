@@ -108,9 +108,9 @@ input[type="checkbox"] { accent-color: var(--mint); width: 17px; height: 17px; v
   .kill-readout { grid-area: chain; }
   .game-stage #touch-controls { grid-area: touch; margin: 0; align-self: center; }
   .game-stage .coin-touch-controls { flex-direction: column; padding: 8px; gap: 8px; }
-  .game-stage .coin-touch-pad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(2, 42px); gap: 4px; }
-  .game-stage .coin-touch-button { min-width: 42px; min-height: 42px; }
-  .game-stage .coin-touch-strike { width: 100%; min-height: 42px; }
+  .game-stage .coin-touch-pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 4px; }
+  .game-stage .coin-touch-button { min-width: 44px; min-height: 44px; }
+  .game-stage .coin-touch-strike { width: 100%; min-height: 44px; }
 }
 @media (max-width: 380px) {
   .game-brand .eyebrow { display: none; }
