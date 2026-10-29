@@ -6,7 +6,10 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.score = 0;
     this.finished = false;
-    this.deadline = this.time.now + c.roundSeconds * 1000;
+    // Features push per-frame functions (time, delta) and HUD functions returning text.
+    this.updaters = [];
+    this.hudItems = [];
+    this.deadline = this.time.now + this.getRoundSeconds() * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
@@ -19,22 +22,46 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.setCircle(9);
     this.placeCoin();
     this.drones = this.physics.add.group();
-    for (let i = 0; i < c.droneCount; i++) {
-      const drone = this.add.rectangle(90 + i * 270, 100, 26, 26, c.colors.drone);
+    const droneSpeed = this.getDroneSpeed();
+    for (let i = 0; i < this.getDroneCount(); i++) {
+      // Wrap the starting x so more than three drones still start inside the arena.
+      const drone = this.add.rectangle(90 + (i * 270) % 700, 100, 26, 26, c.colors.drone);
       this.drones.add(drone);
       drone.body.setCollideWorldBounds(true).setBounce(1, 1);
       const angle = (35 + i * 105) * Math.PI / 180;
-      drone.body.setVelocity(Math.cos(angle) * c.droneSpeed, Math.sin(angle) * c.droneSpeed);
+      drone.body.setVelocity(Math.cos(angle) * droneSpeed, Math.sin(angle) * droneSpeed);
     }
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
-      this.score++;
+      this.addScore(1, 'coin');
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+  }
+
+  // Shared helpers: features read tuning and change the score through these.
+  // difficultyName lives on the scene instance, so it survives scene.restart().
+  getDifficulty() {
+    const d = COIN_DASH.difficulty;
+    return d[this.difficultyName] || d[d.default];
+  }
+
+  getDroneSpeed() { return COIN_DASH.droneSpeed * this.getDifficulty().droneSpeed; }
+
+  getDroneCount() {
+    return Math.max(1, Math.round(COIN_DASH.droneCount * this.getDifficulty().droneCount));
+  }
+
+  getRoundSeconds() {
+    return Math.round(COIN_DASH.roundSeconds * this.getDifficulty().roundSeconds);
+  }
+
+  addScore(points, reason) {
+    this.score += points;
+    this.events.emit('score', points, reason);
   }
 
   placeCoin() {
@@ -49,7 +76,7 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.reset(x, y);
   }
 
-  update() {
+  update(time, delta) {
     if (this.finished) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
@@ -57,8 +84,13 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
+    this.updaters.forEach(fn => fn(time, delta));
+    if (this.finished) return;
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
+    const extras = this.hudItems.map(fn => fn()).filter(Boolean);
+    this.hud.setText(extras.length
+      ? [`Coins: ${this.score}`, `Time: ${seconds}s`, ...extras].join('   ')
+      : `Coins: ${this.score}                       Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
   }
 

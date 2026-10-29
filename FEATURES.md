@@ -15,7 +15,13 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | LEVELS | Levels get harder over time | Eldad coordinator | implementing | eldad/core; game.js, settings.js, index.html | Scale speed and add enemies with caps; preserve enemy type metadata |
 | AUDIO | Background music and action sounds | Eldad audio agent | awaiting integration | eldad/audio; features/audio.js | Offline synthesis; gesture unlock, mute and volume; restart cleanup |
 | LIVES | Life system and hit invulnerability | Eldad lives agent | awaiting integration | eldad/lives; features/lives.js, tests/lives.test.cjs | Multi-life hits, temporary immunity, last-life game over, clean restart |
-| ENEMY-TYPES | Enemy varieties / behaviors | Hila's AI | planned | Hila to fill in branch and owned files | Reserved for Hila by the pair; Eldad must not implement enemy varieties |
+| ENEMY-TYPES | Enemy varieties / behaviors | Hila's AI | implementing | feat/enemy-types; game.js (own methods), settings.js (`enemyTypes` section) | Chaser / Patroller / Zipper plus Space dash that destroys enemies for per-type points; contact without dash still ends the round |
+| HILA-GROUNDWORK | Shared helpers for parallel features | Hila coordinator | awaiting integration | hila/groundwork; game.js, settings.js | getDroneSpeed/Count, getRoundSeconds, addScore + `score` event, `updaters` and `hudItems` hooks, `difficulty` settings. Default play unchanged (checked in browser). Touches Eldad's core files: coordinate before merging to main |
+| DIFFICULTY | Easy / Normal / Hard start screen | Hila's AI | implementing | feat/difficulty; game.js (own methods), settings.js (`difficulty`) | Multipliers via groundwork helpers; distinct from SETTINGS (starting count/lives inputs) |
+| POWERUPS | Shield, Speed and Magnet pickups | Hila's AI | implementing | feat/powerups; game.js (own methods), settings.js (`powerups`) | Spawn ~every 15s, last 5s; active power-up and countdown in HUD |
+| MULTIPLAYER | Optional local 2-player mode | Hila's AI | implementing | feat/local-multiplayer; game.js (own methods), settings.js (`multiplayer`) | M toggles 1P/2P; P1 WASD, P2 arrows, separate colours and scores |
+| COMBO | Combo multiplier for quick coin pickups | Hila's AI | implementing | feat/combo; game.js (own methods), settings.js (`combo`) | Pickups within the combo window raise a capped multiplier shown in HUD |
+| NEAR-MISS | Close-call bonus near drones | Hila's AI | implementing | feat/near-miss; game.js (own methods), settings.js (`nearMiss`) | Small bonus and popup for passing close to a drone without touching it |
 
 ## Shared integration boundary
 
