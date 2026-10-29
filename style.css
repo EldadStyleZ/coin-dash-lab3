@@ -121,3 +121,8 @@ footer, .page-footer { margin-top: 24px; color: #8194ae; font-size: 11px; }
   button { transition: none; }
   button:active { transform: none; }
 }
+
+#dash-status { margin: 12px 0 0; color: var(--mint); font: 12px/1.5 ui-monospace, monospace; }
+#progress-status { color: var(--gold); font-size: 13px; }
+#game-status { margin-top: 14px; }
+#audio-controls .audio-status { font-size: 11px; color: var(--muted); }

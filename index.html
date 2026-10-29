@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Coin Dash — Neon Arcade</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="features/controls.css">
 </head>
 <body>
 <main>
@@ -19,11 +20,14 @@
   </div>
   <div class="game-layout">
     <section class="game-stage" aria-label="Game arena">
-      <div id="game" tabindex="0" aria-label="Coin Dash arena. Move with arrow keys or WASD. P pauses, R restarts."></div>
+      <div id="game" tabindex="0" aria-label="Coin Dash arena. Move with arrow keys or WASD. P pauses, R restarts, Shift dashes."></div>
       <p id="game-status" role="status" aria-live="polite">Collect coins and avoid creatures.</p>
-      <p class="controls-help"><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move <span>·</span> <kbd>P</kbd> Pause <span>·</span> <kbd>R</kbd> Restart</p>
+      <div id="touch-controls" aria-label="Touch game controls"></div>
+      <p id="dash-status" role="status">Dash ready — Shift</p>
+      <p class="controls-help"><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move <span>·</span> <kbd>P</kbd> Pause <span>·</span> <kbd>R</kbd> Restart <span>·</span> <kbd>Shift</kbd> Dash</p>
     </section>
     <aside class="sidebar" aria-label="Round controls">
+      <section class="panel"><h2 class="panel-title">YOUR RECORD</h2><div id="progress-status" role="status" aria-live="polite"></div><p>Collect quickly for up to ×3 points. Best scores are saved for these round settings.</p></section>
       <section class="panel"><h2 class="panel-title">YOUR LIVES</h2><div id="lives-status" role="status" aria-live="polite">♥ ♥ ♥</div><p>After a hit, you get a brief shield. Keep moving!</p></section>
       <form class="panel" id="round-settings">
         <h2 class="panel-title">BUILD YOUR ROUND</h2>
@@ -43,6 +47,10 @@
 <script src="features/visuals.js"></script>
 <script src="features/lives.js"></script>
 <script src="features/audio.js"></script>
+<script src="features/round.js"></script>
+<script src="features/abilities.js"></script>
+<script src="features/scoring.js"></script>
+<script src="features/controls.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
