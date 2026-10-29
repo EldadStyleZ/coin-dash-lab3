@@ -88,7 +88,6 @@ remain available. Overlaps use one existing combo, shield/magnet, and strike sys
 
 
 Combat playtest update: `abilities.strike(time)` emits `player-strike` with a
-per-player strike ID. The sword lunges in its starting direction at 2.5× speed for 180ms; Shift is unbound. Combat applies short-range facing
-arcs with wall checks, awards kill points once, and resets only the killer's
+per-player strike ID. The sword lunges in its starting direction at 2.5× speed for 180ms; Shift is unbound. Combat only kills from the existing player/enemy physics overlap during an active dash; it never scans nearby enemies or applies an extra facing arc. It awards kill points once and resets only the killer's
 corresponding cooldown. Quick kills form a 2.5-second chain; a missed sword strike
 breaks the chain. Angry chase speed is half the previous final speed, capped at180.
