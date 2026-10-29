@@ -32,7 +32,7 @@ and destroy on scene shutdown. Config defaults to three lives and 1500ms immunit
 
 `window.CoinDashAudio.create(scene)` returns
 `{play(action), setPaused(paused), destroy()}`. Supported actions: `coin`, `hit`,
-`level`, `gameover`. Root calls these at the corresponding events. Module builds
+`level`, `gameover`, `angry`, `shot`, `slice`. Root calls these at the corresponding events. Module builds
 controls inside `#audio-controls`, with music/sound toggle and volume. Synthesize
 music and effects locally using Web Audio; audio starts only after a gesture.
 Release oscillators/timers/listeners on destroy. If Web Audio is unavailable,
@@ -59,5 +59,30 @@ baseline difficulty changes. Enemy data can include `type` and `speedMultiplier`
 Use `enemy.setData('speedMultiplier', n)` for baseline speed scaling (default 1).
 Root keeps existing enemies, stores metadata, and scales each enemy's velocity
 direction without replacing their objects when leveling. Coordinate other hooks
-in FEATURES.md before changing core. This adapter is an offer, not an implemented
-enemy-variety feature.
+in HILA_STATUS.md before changing core. The implemented adapter is in `features/enemies.js`, ported from Hila's branch.
+
+
+## Combined pair integration
+
+`getRunners()` returns active `{id, player, abilities, lives, score, out}` records.
+`players.getRunner(id)` also returns knocked-out runners. `players` owns independent
+scores/lives/movement; core owns the shared timer and game-over transition.
+
+`collectCoin(x, y, runnerId='p1')` is the only coin reward path: score/combo,
+exactly three seconds, missions, audio, reactions. Special coins emit
+`special-coin` with `{type,x,y,runnerId}`. `awardPoints(points,reason,runnerId)`
+adds bonus points without adding time, coin counts, or combo credit.
+
+`CoinDashCombat` owns F/L shooting, dash-kills, slice effects, and active-time
+respawns. Space/Shift and P2 Enter all use `CoinDashAbilities`; there is one dash
+cooldown per player. Ordinary contact uses lives. Call near-miss `contact` before
+shield, immunity or dash early returns. Enemy normal updates precede rage.
+
+Powerups expose `speedMultiplier(time,runnerId)` and `absorbHit(time,runnerId)`;
+effects belong to collectors. Death removes that player's effects. Finish clears
+combat/powerups and runs rage restoration before pausing physics. Restart removes
+all owned listeners/colliders. Native form arrows remain usable; arena scroll
+prevention runs at window AFTER Phaser's input listener.
+
+The port source commits are recorded in FEATURES.md; their original branches
+remain available. Overlaps use one existing combo, shield/magnet, and dash system.
