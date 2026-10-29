@@ -26,6 +26,15 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | TOUCH | Pointer/touch directional controls | Eldad controls agent | awaiting integration | eldad/touch; features/controls.js, features/controls.css, tests/controls.test.cjs | Multi-pointer, release/cancel/blur cleanup, keyboard support stays in core |
 | ROUND-STATE | OOP round state and integration | Eldad coordinator | implementing | eldad/polish; features/round.js, tests/round.test.cjs, game.js, index.html, settings.js, style.css | Separate state from rendering; wire the second batch |
 
+## Additional user requests (claimed before implementation)
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
+| --- | --- | --- | --- | --- | --- |
+| TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | main; features/round.js, tests/round.test.cjs, game.js, index.html, settings.js | Active elapsed difficulty continues; remaining time increases |
+| REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | implementing | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
+| MISSIONS | Short mastery goals and completion badges | Eldad missions agent | implementing | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
+| POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | implementing | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
+
 ## Shared integration boundary
 
 First batch merged and checked; Eldad continues to own `game.js`, `settings.js`, and `index.html` while wiring the
@@ -37,9 +46,12 @@ released after integration is checked; this does not reserve shared files foreve
 
 ## Checks, failures, and fixes
 
+- Review also found Phaser global arrow-key capture blocking native settings widgets.
+  Removed global capture; only the focused arena prevents arrow scrolling. Browser
+  field/volume keyboard regression checks pending.
 - Independent review caught keyboard shortcuts being ignored after New round/Pause
   left a button focused. Fixed both handlers to return focus to the arena; browser
-  regression check pending. This was an integration issue, not a merge conflict.
+  regression check passed (Pause button, then P resumed the game). This was an integration issue, not a merge conflict.
 
 - Second batch: dash 7 tests, scoring 10 tests, touch 7 tests passed before integration.
 - Round-model test initially failed because it compared a floating-point multiplier
