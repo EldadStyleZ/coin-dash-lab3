@@ -14,7 +14,7 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
 | --- | --- | --- | --- | --- | --- |
 | SETUP | Clone and first test push | Eldad coordinator | done | main; docs/eldad-access-check.md | Pushed 38f725c; Hila accepted collaborator invitation |
-| VISUALS | Player/enemy sprites and distinct enemy colors | Eldad visuals agent | done | eldad/visuals; features/visuals.js, style.css | Keep Hila's enemy types and behaviors separate; expose reusable sprite factories |
+| VISUALS | Player/enemy sprites and distinct enemy colors | Eldad visuals agent | done | eldad/visuals; features/visuals.js, style.css | Browser sprite layout checked; keep Hila's enemy types and behaviors separate; expose reusable sprite factories |
 | SETTINGS | Controls for starting creature count and lives | Eldad coordinator | done | eldad/core; game.js, settings.js, index.html | Apply on a new round; validate/clamp values |
 | LEVELS | Levels get harder over time | Eldad coordinator | done | eldad/core; game.js, settings.js, index.html | Scale speed and add enemies with caps; preserve enemy type metadata |
 | AUDIO | Background music and action sounds | Eldad audio agent | done | eldad/audio; features/audio.js | Offline synthesis; gesture unlock, mute and volume; restart cleanup |
@@ -30,10 +30,13 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
 | --- | --- | --- | --- | --- | --- |
-| TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | eldad/arcade-core; features/round.js, tests/round.test.cjs, features/scoring.js, game.js, index.html, settings.js, README.md, docs/engagement-design.md | Active elapsed difficulty continues; remaining time increases |
+| TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | eldad/arcade-core; features/round.js, tests/round.test.cjs, features/scoring.js, features/abilities.js, tests/scoring.test.cjs, game.js, index.html, settings.js, README.md, docs/engagement-design.md | Active elapsed difficulty continues; remaining time increases |
 | REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | implementing | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
 | MISSIONS | Short mastery goals and completion badges | Eldad missions agent | implementing | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
 | POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | implementing | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
+
+| ARENA | Level palettes and starting obstacles | Eldad arena agent | implementing | eldad/arena; features/arena.js, tests/arena.test.cjs | Clear routes, player/enemy wall collisions, safe-spawn query |
+| RAGE | One temporary red chasing enemy with angry sound | Eldad rage agent | planned | eldad/rage; features/rage.js, tests/rage.test.cjs | Duplication check pending; additive overlay, Hila keeps enemy varieties |
 
 ## Shared integration boundary
 
