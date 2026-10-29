@@ -20,6 +20,11 @@ captions still work without one. Interact with the page to enable audio.
 
 ## Controls and game features
 
+The game stays inside the viewport. Use the **⚙ settings** button for difficulty,
+players, audio, voice and mission details. Opening settings pauses the round;
+closing it returns focus to play. Apply & new round applies changed settings.
+Space and arrow keys never scroll the play screen, including during cooldown.
+
 - WASD / arrows move; Space or Shift performs the samurai dash/slice; F shoots. P or Escape pauses; R restarts.
 - Touch D-pad and Dash appear on narrow screens or touch devices.
 - Choose Easy / Normal / Hard, 1–12 base creatures and 1, 3, or 5 lives, then New round. Difficulty scales creature count/speed and starting time (80/60/48 seconds).
