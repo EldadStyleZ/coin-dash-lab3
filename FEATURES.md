@@ -31,12 +31,12 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
 | --- | --- | --- | --- | --- | --- |
 | TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | eldad/arcade-core; features/round.js, tests/round.test.cjs, features/scoring.js, features/abilities.js, tests/scoring.test.cjs, game.js, index.html, settings.js, features/audio.js, tests/audio.test.cjs, README.md, docs/engagement-design.md | Active elapsed difficulty continues; remaining time increases |
-| REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | implementing | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
-| MISSIONS | Short mastery goals and completion badges | Eldad missions agent | implementing | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
-| POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | implementing | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
+| REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | awaiting integration | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
+| MISSIONS | Short mastery goals and completion badges | Eldad missions agent | awaiting integration | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
+| POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | awaiting integration | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
 
-| ARENA | Level palettes and starting obstacles | Eldad arena agent | implementing | eldad/arena; features/arena.js, tests/arena.test.cjs | Clear routes, player/enemy wall collisions, safe-spawn query |
-| RAGE | One temporary red chasing enemy with angry sound | Eldad rage agent | implementing | eldad/rage; features/rage.js, tests/rage.test.cjs | No pushed Hila work/claim found at last fetch; additive overlay only, Hila keeps enemy varieties; can disable if she already owns rage |
+| ARENA | Level palettes and starting obstacles | Eldad arena agent | awaiting integration | eldad/arena; features/arena.js, tests/arena.test.cjs | Clear routes, player/enemy wall collisions, safe-spawn query |
+| RAGE | One temporary red chasing enemy with angry sound | Eldad rage agent | awaiting integration | eldad/rage; features/rage.js, tests/rage.test.cjs | No pushed Hila work/claim found at last fetch; additive overlay only, Hila keeps enemy varieties; can disable if she already owns rage |
 
 ## Shared integration boundary
 
@@ -53,6 +53,15 @@ See `docs/feature-contract.md` for stable integration hooks. Core ownership is
 released after integration is checked; this does not reserve shared files forever.
 
 ## Checks, failures, and fixes
+
+- Third batch module checks passed: reactions 9, missions 6, special-coin powerups
+  14, arena 6, rage 9. Root timer tests confirm each coin adds exactly three seconds
+  and a death after the original 60s is not misreported as round survival.
+- Reactions test initially expected an already-expired reward to remain; corrected
+  its expectation. Active-time expiration behavior was retained.
+- Latest partner check: only main exists remotely, no open PRs, HILA_STATUS.md
+  unchanged. Hila's local/unpushed work is not visible; enemy varieties stay hers.
+
 
 - Review also found Phaser global arrow-key capture blocking native settings widgets.
   Removed global capture; only the focused arena prevents arrow scrolling. Browser
