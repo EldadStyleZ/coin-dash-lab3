@@ -1,6 +1,7 @@
 /* global Phaser, COIN_DASH */
 (() => {
   const el = id => document.getElementById(id);
+  const setText = (id, value) => { const node = el(id); const text = String(value); if (node.textContent !== text) node.textContent = text; };
   const clampInteger = (value, fallback, min, max) => {
     const number = Number(value);
     return Number.isFinite(number) && String(value).trim() !== ''
@@ -149,6 +150,7 @@
       if (this.finished || this.paused) return;
       const tick = this.round.advance(delta);
       this.runTime = this.round.elapsed;
+      this.level = this.round.level;
       if (tick.finished) { this.finish('Round complete!'); return; }
       if (tick.gainedLevels > 0) {
         const gained = tick.gainedLevels;
@@ -171,10 +173,10 @@
       this.updateHud();
     }
     updateHud() {
-      el('score-value').textContent = this.score;
-      el('level-value').textContent = String(this.level).padStart(2, '0');
-      el('time-value').textContent = `${Math.max(0, Math.ceil(this.config.roundSeconds - this.runTime / 1000))}s`;
-      el('enemy-value').textContent = this.drones.getLength();
+      setText('score-value', this.score);
+      setText('level-value', String(this.level).padStart(2, '0'));
+      setText('time-value', `${this.round.secondsRemaining}s`);
+      setText('enemy-value', this.drones.getLength());
       this.levelHint.setText(`LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`);
     }
     setPaused(paused) {
