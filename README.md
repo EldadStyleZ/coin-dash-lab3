@@ -41,7 +41,7 @@ Space and arrow keys never scroll the play screen, including during cooldown.
   A knocked-out player stays out while the other continues; highest score wins.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
-- Sword kills reset the attack cooldown immediately. A missed strike has a 1-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash. The original fading afterimages and diagonal hit slash are preserved.
+- Sword kills require physical contact during the dash, as in the original game. A kill resets the attack cooldown immediately. A missed strike has a 1-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash. The original fading afterimages and diagonal hit slash are preserved.
 - Chain kills within 2.5 seconds for double/triple-kill feedback. A missed strike breaks the chain. Shooting kills also reset that player's shot cooldown.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
 - Collect five coins, strike three times, and reach level three to complete missions.

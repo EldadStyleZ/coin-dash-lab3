@@ -121,15 +121,20 @@ function target(h, x = 450, y = 250, type = 'chaser') {
   return enemy;
 }
 
-test('real strike kills immediately, gives original points, and allows another strike in the SAME frame', () => {
+test('physics contact during the dash kills and immediately reloads for another dash', () => {
   const h = setup(), ability = h.runners[0].abilities;
   const first = target(h);
   assert.equal(ability.strike(0), true);
+  assert.equal(first.active, true);
+  assert.equal(ability.nextStrikeAt, 1000);
+  assert.equal(h.combat.contact(first, h.runners[0]), true);
   assert.equal(first.active, false);
   assert.equal(ability.nextStrikeAt, 0);
   assert.deepEqual(h.awards, [[5, 'enemy-chaser', 'p1']]);
   const second = target(h, 460, 250, 'zipper');
   assert.equal(ability.strike(0), true);
+  assert.equal(second.active, true);
+  assert.equal(h.combat.contact(second, h.runners[0]), true);
   assert.equal(second.active, false);
   assert.equal(ability.strikeId, 2);
   assert.deepEqual(h.awards[1], [10, 'enemy-zipper', 'p1']);
@@ -141,7 +146,7 @@ test('real strike kills immediately, gives original points, and allows another s
 
 test('miss keeps one-second cooldown; whiff and chain reset happen once at swing end', () => {
   const h = setup(), ability = h.runners[0].abilities;
-  target(h); ability.strike(0);
+  const first = target(h); ability.strike(0); h.combat.contact(first, h.runners[0]);
   assert.equal(h.combat.killChains.get('p1').count, 1);
   assert.equal(ability.strike(0), true);
   h.tick(179); assert.equal(h.sounds.includes('whiff'), false);
@@ -154,62 +159,68 @@ test('miss keeps one-second cooldown; whiff and chain reset happen once at swing
   assert.equal(ability.strike(1000), true);
 });
 
-test('sword lunge reaches a target beyond initial range and leaves afterimages behind', () => {
+test('sword lunge keeps its trail but must physically reach an enemy before a kill', () => {
   const h = setup(), runner = h.runners[0], ability = runner.abilities;
   const enemy = target(h, 520, 250);
   ability.strike(0);
-  assert.equal(enemy.active, true);
   const velocity = ability.velocity(0, 0, 80);
   runner.player.x += velocity.x * 0.08;
-  runner.player.y += velocity.y * 0.08;
   h.tick(80);
-  assert.equal(enemy.active, false);
-  assert.equal(ability.nextStrikeAt, 80);
+  assert.equal(enemy.active, true); // 72px away used to be an automatic kill.
+  assert.equal(ability.nextStrikeAt, 1000);
   const firstGhost = h.combat.effects.find(effect => effect.start === 0);
   assert.equal(firstGhost.object.x, 400);
   assert.equal(firstGhost.object.y, 250);
   assert.equal(firstGhost.end, 160);
-  assert.ok(firstGhost.object.x < runner.player.x);
-  assert.equal(ability.strike(80), true);
+  runner.player.x = 502; // The 24px bodies now overlap.
+  h.tick(170);
+  assert.equal(enemy.active, true); // Only the physics contact callback may kill.
+  assert.equal(h.combat.contact(enemy, runner), true);
+  assert.equal(ability.nextStrikeAt, 170);
+  assert.equal(ability.strike(170), true);
   h.tick(180);
   assert.equal(h.combat.swings.get('p1').id, 2);
   assert.equal(h.sounds.includes('whiff'), false);
 });
 
-test('range, facing cone, exact boundary and wall line of sight govern sword hits', () => {
-  for (const [x, y, expected] of [[476, 250, true], [477, 250, false], [350, 250, false], [420, 290, false], [425, 250 + Math.sqrt(3) * 25, true]]) {
-    const h = setup(); const enemy = target(h, x, y);
+test('pressing or updating a dash never automatically kills nearby enemies', () => {
+  for (const [x, y] of [[425, 250], [450, 250], [476, 250], [477, 250], [350, 250], [420, 290]]) {
+    const h = setup(), enemy = target(h, x, y);
     h.runners[0].abilities.strike(0);
-    assert.equal(enemy.active, !expected, `target ${x},${y}`);
+    h.tick(50); h.tick(179);
+    assert.equal(enemy.active, true, `nearby target ${x},${y}`);
+    assert.equal(h.awards.length, 0);
+    assert.equal(h.combat.killChains.size, 0);
+    assert.equal(h.runners[0].abilities.nextStrikeAt, 1000);
   }
-  const h = setup(); const blocked = target(h, 450, 250);
+});
+
+test('wall-separated enemies and large body radii do not grant ranged sword hits', () => {
+  const h = setup(), enemy = target(h, 450, 250);
+  enemy.body.center = { x: 450, y: 250 };
+  enemy.body.halfWidth = 20; enemy.body.halfHeight = 20;
+  h.runners[0].player.body.center = { x: 400, y: 250 };
   h.scene.isSpawnClear = (x, y) => !(x >= 420 && x <= 430 && y > 240 && y < 260);
   h.runners[0].abilities.strike(0);
-  assert.equal(blocked.active, true);
-  assert.equal(h.combat.contact(blocked, h.runners[0]), false);
-});
-
-test('body centers and body radius affect reach; sprite origin does not change aim', () => {
-  const h = setup(); const enemy = target(h, 900, 900);
-  enemy.body.center = { x: 480, y: 250 };
-  enemy.body.halfWidth = 8; enemy.body.halfHeight = 8;
-  h.runners[0].player.body.center = { x: 400, y: 250 };
-  h.runners[0].abilities.strike(0);
-  assert.equal(enemy.active, false);
-});
-
-test('active window catches approaching targets; attack is not immunity to contact behind the player', () => {
-  const h = setup(), ability = h.runners[0].abilities;
-  const front = target(h, 500, 250), behind = target(h, 390, 250);
-  ability.strike(0);
-  assert.equal(h.combat.contact(behind, h.runners[0]), false);
-  front.x = 450;
   h.tick(100);
-  assert.equal(front.active, false);
-  assert.equal(ability.nextStrikeAt, 100);
-  const late = target(h, 450, 250);
-  h.tick(180);
-  assert.equal(h.combat.contact(late, h.runners[0]), false);
+  assert.equal(enemy.active, true);
+  assert.equal(h.awards.length, 0);
+});
+
+test('original contact rule accepts any touching side, only during the active dash', () => {
+  for (const [x, y] of [[390, 250], [410, 250], [400, 240], [400, 260]]) {
+    const h = setup(), ability = h.runners[0].abilities;
+    const enemy = target(h, x, y);
+    assert.equal(h.combat.contact(enemy, h.runners[0]), false);
+    ability.strike(0);
+    h.tick(100);
+    assert.equal(h.combat.contact(enemy, h.runners[0]), true);
+    assert.equal(ability.nextStrikeAt, 100);
+    const late = target(h, x, y);
+    h.tick(180);
+    assert.equal(h.combat.contact(late, h.runners[0]), false);
+    assert.equal(late.active, true);
+  }
 });
 
 test('P2 strike reset and kill chains never unlock or reward P1; duplicate events/kills are inert', () => {
@@ -219,6 +230,8 @@ test('P2 strike reset and kill chains never unlock or reward P1; duplicate event
   const enemy = target(h, 450, 250, 'patroller');
   p2.abilities.strike(0);
   h.scene.events.emit('player-strike', { runnerId: 'p2', strikeId: 1 });
+  assert.equal(h.awards.length, 0);
+  assert.equal(h.combat.contact(enemy, p2), true);
   assert.equal(h.combat.contact(enemy, p2), false);
   assert.deepEqual(h.awards, [[3, 'enemy-patroller', 'p2']]);
   assert.equal(p2.abilities.nextStrikeAt, 0);
@@ -228,9 +241,9 @@ test('P2 strike reset and kill chains never unlock or reward P1; duplicate event
 
 test('old strike expiry/event cannot reset or whiff a newer successful swing', () => {
   const h = setup(), ability = h.runners[0].abilities;
-  target(h); ability.strike(0);
+  const first = target(h); ability.strike(0); h.combat.contact(first, h.runners[0]);
   h.scene.runTime = 100;
-  target(h); ability.strike(100);
+  const second = target(h); ability.strike(100); h.combat.contact(second, h.runners[0]);
   h.scene.events.emit('player-strike', { runnerId: 'p1', strikeId: 1 });
   h.tick(180);
   assert.equal(h.combat.swings.get('p1').id, 2);
@@ -262,7 +275,7 @@ test('shot kill immediately reloads only its shooter and never unlocks a sword s
 
 test('quick kills combine sword and shots without multiplying points and expire at 2.5s', () => {
   const h = setup();
-  target(h); h.runners[0].abilities.strike(0);
+  const enemy = target(h); h.runners[0].abilities.strike(0); h.combat.contact(enemy, h.runners[0]);
   h.scene.runTime = 200; h.combat.fire();
   h.colliders[0].callback([...h.combat.shots.keys()][0], target(h, 600, 250));
   assert.equal(h.combat.killChains.get('p1').count, 2);
@@ -274,7 +287,7 @@ test('quick kills combine sword and shots without multiplying points and expire 
 test('paused active time freezes misses and respawns; cap respected; finish/destroy cancel all work', () => {
   const h = setup();
   h.scene.config.maxDrones = 1;
-  target(h); h.runners[0].abilities.strike(0);
+  const enemy = target(h); h.runners[0].abilities.strike(0); h.combat.contact(enemy, h.runners[0]);
   h.runners[0].abilities.strike(0);
   h.scene.paused = true; h.combat.setPaused(true); h.tick(10000);
   assert.equal(h.sounds.includes('whiff'), false);
@@ -355,6 +368,8 @@ test('multi-kill audio is coalesced and spoken callouts use only 2/3/5 milestone
   const h = setup();
   for (let i = 0; i < 7; i++) target(h, 430 + i, 250);
   h.runners[0].abilities.strike(0);
+  assert.equal(h.awards.length, 0);
+  h.enemies.slice().forEach(enemy => h.combat.contact(enemy, h.runners[0]));
   assert.equal(h.awards.length, 7);
   assert.equal(h.announcements.length, 3);
   assert.match(h.announcements[0], /DOUBLE/);

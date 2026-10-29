@@ -35,10 +35,9 @@
           if (!ability || !Number.isSafeInteger(strikeId) || strikeId <= (this.lastStrikeIds.get(runnerId) || 0)
               || strikeId !== ability.strikeId || ability.strikeEndsAt <= this.now()) return;
           this.lastStrikeIds.set(runnerId, strikeId);
-          const swing = { id: strikeId, end: ability.strikeEndsAt, kills: 0, direction: { ...ability.strikeDirection } };
+          const swing = { id: strikeId, end: ability.strikeEndsAt, kills: 0 };
           this.swings.set(runnerId, swing);
           this.dashTrail(runner, this.now());
-          this.evaluateStrike(runner, swing);
         };
         scene.events.on('player-strike', onStrike);
         this.listeners.push(() => scene.events.off('player-strike', onStrike));
@@ -170,39 +169,12 @@
         0xffffff, 0.35), time, 160);
       this.lastTrail.set(runner.id, time);
     }
-    inStrike(enemy, runner, swing) {
-      if (!enemy || enemy.active === false || !enemy.body || enemy.body.enable === false) return false;
-      const origin = runner.player.body?.center || runner.player;
-      const target = enemy.body.center || enemy;
-      const dx = target.x - origin.x, dy = target.y - origin.y;
-      const distance = Math.hypot(dx, dy);
-      const halfWidth = Number.isFinite(enemy.body.halfWidth) ? enemy.body.halfWidth : (enemy.body.width || 0) / 2;
-      const halfHeight = Number.isFinite(enemy.body.halfHeight) ? enemy.body.halfHeight : (enemy.body.height || 0) / 2;
-      const radius = Math.max(0, Math.min(24, Math.hypot(halfWidth, halfHeight)));
-      if (!Number.isFinite(distance) || distance > 76 + radius) return false;
-      const facingLength = Math.hypot(swing.direction.x, swing.direction.y);
-      if (!facingLength || !Number.isFinite(facingLength)) return false;
-      const angleAllowance = Math.PI / 3 + (distance ? Math.asin(Math.min(1, radius / distance)) : 0);
-      if (distance > 0 && (dx * swing.direction.x + dy * swing.direction.y) / (distance * facingLength) < Math.cos(angleAllowance) - 1e-10) return false;
-      if (typeof this.scene.isSpawnClear === 'function') {
-        const steps = Math.max(1, Math.ceil(distance / 4));
-        for (let i = 0; i <= steps; i++) {
-          if (!this.scene.isSpawnClear(origin.x + dx * i / steps, origin.y + dy * i / steps, 0)) return false;
-        }
-      }
-      return true;
-    }
-    evaluateStrike(runner, swing) {
-      if (this.now() >= swing.end || runner.abilities.strikeId !== swing.id) return;
-      for (const enemy of this.scene.drones.getChildren().slice()) {
-        if (this.swings.get(runner.id) !== swing) return;
-        if (this.inStrike(enemy, runner, swing)) this.kill(enemy, runner.id, 'enemy', swing);
-      }
-    }
     contact(enemy, runner) {
       if (!this.active() || !runner || !this.runner(runner.id)) return false;
       const swing = this.swings.get(runner.id);
-      if (!swing || this.now() >= swing.end || runner.abilities.strikeId !== swing.id || !this.inStrike(enemy, runner, swing)) return false;
+      // Called only by the scene's existing Arcade Physics overlap callback.
+      // The sword must touch the enemy during the dash, exactly as before.
+      if (!swing || this.now() >= swing.end || runner.abilities.strikeId !== swing.id) return false;
       return this.kill(enemy, runner.id, 'enemy', swing);
     }
     recordKill(id) {
@@ -231,8 +203,6 @@
             this.killChains.delete(id);
             this.scene.audio?.play?.('whiff');
           }
-        } else {
-          this.evaluateStrike(this.runner(id), swing);
         }
       }
       for (const [id, chain] of this.killChains) if (!this.runner(id) || time - chain.last >= 2500) this.killChains.delete(id);
