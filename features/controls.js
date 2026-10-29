@@ -3,9 +3,9 @@
   'use strict';
   const directions = { up: [0, -1], left: [-1, 0], down: [0, 1], right: [1, 0] };
   class CoinDashTouchControls {
-    constructor({ container, onDash = () => {} } = {}) {
+    constructor({ container, onStrike = () => {} } = {}) {
       this.container = container || root.document?.getElementById('touch-controls');
-      this.onDash = onDash;
+      this.onStrike = onStrike;
       this.pointers = new Map();
       this.keys = new Map();
       this.buttons = new Map();
@@ -17,19 +17,19 @@
       this.element = this.document.createElement('div');
       this.element.className = 'coin-touch-controls';
       this.element.setAttribute('role', 'group');
-      this.element.setAttribute('aria-label', 'Touch movement and dash controls');
+      this.element.setAttribute('aria-label', 'Touch movement and strike controls');
       const pad = this.document.createElement('div');
       pad.className = 'coin-touch-pad';
       this.element.appendChild(pad);
-      for (const [action, symbol] of Object.entries({ up: '↑', left: '←', down: '↓', right: '→', dash: 'Dash ↗' })) {
+      for (const [action, symbol] of Object.entries({ up: '↑', left: '←', down: '↓', right: '→', strike: 'Strike ⚔' })) {
         const button = this.document.createElement('button');
         button.type = 'button';
         button.className = 'coin-touch-button coin-touch-' + action;
         button.textContent = symbol;
-        button.setAttribute('aria-label', action === 'dash' ? 'Dash' : 'Move ' + action);
+        button.setAttribute('aria-label', action === 'strike' ? 'Strike' : 'Move ' + action);
         button.setAttribute('aria-pressed', 'false');
         this.buttons.set(action, button);
-        (action === 'dash' ? this.element : pad).appendChild(button);
+        (action === 'strike' ? this.element : pad).appendChild(button);
         this.listen(button, 'pointerdown', event => this.pointerDown(event, action, button));
         this.listen(button, 'pointerup', event => this.pointerEnd(event));
         this.listen(button, 'pointercancel', event => this.pointerEnd(event));
@@ -42,9 +42,9 @@
         });
         this.listen(button, 'contextmenu', event => event.preventDefault());
         // Keyboard handling prevents the native click. Assistive technology can
-        // still activate Dash by dispatching a click without a pointer event.
-        if (action === 'dash') this.listen(button, 'click', event => {
-          if (!this.destroyed && event.detail === 0 && !this.isHeld('dash')) this.onDash();
+        // still activate Strike by dispatching a click without a pointer event.
+        if (action === 'strike') this.listen(button, 'click', event => {
+          if (!this.destroyed && event.detail === 0 && !this.isHeld('strike')) this.onStrike();
         });
       }
       this.container.appendChild(this.element);
@@ -70,7 +70,7 @@
       this.pointers.set(event.pointerId, { action, button });
       try { button.setPointerCapture(event.pointerId); } catch (_) { /* Window release remains available. */ }
       this.refresh();
-      if (action === 'dash') this.onDash();
+      if (action === 'strike') this.onStrike();
     }
 
     pointerEnd(event) {
@@ -98,7 +98,7 @@
       if (event.repeat || this.keys.has(key)) return;
       this.keys.set(key, action);
       this.refresh();
-      if (action === 'dash') this.onDash();
+      if (action === 'strike') this.onStrike();
     }
 
     keyUp(event) {
@@ -144,7 +144,7 @@
       this.listeners.splice(0).forEach(remove => remove());
       this.element?.remove();
       this.buttons.clear();
-      this.onDash = () => {};
+      this.onStrike = () => {};
     }
   }
   root.CoinDashTouchControls = CoinDashTouchControls;

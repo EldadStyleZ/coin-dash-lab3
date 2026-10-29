@@ -12,7 +12,7 @@
   <header class="play-toolbar">
     <div class="game-brand"><span class="eyebrow">ELDAD × HILA</span><h1>Coin Dash<span>.</span></h1></div>
     <div class="toolbar-actions">
-      <button id="start-game" type="submit" form="round-settings">New round ↗</button>
+      <button id="start-game" type="submit" form="round-settings" aria-label="New round ↗">New round ↗</button>
       <button id="pause-game" type="button">Pause</button>
       <button id="settings-toggle" class="icon-button" type="button" aria-label="Open settings" title="Settings" aria-haspopup="dialog" aria-controls="settings-dialog" aria-expanded="false"><span aria-hidden="true">⚙</span></button>
     </div>
@@ -28,7 +28,8 @@
     <section class="game-stage" aria-label="Game arena">
       <div id="game" tabindex="0" aria-label="Coin Dash arena. Move with arrows or WASD. Space slices, F shoots. P pauses, R restarts. Player 2: arrows, Enter slice, L shoot."><div id="reaction-overlay" aria-live="polite" aria-atomic="true"></div></div>
       <p id="game-status" role="status" aria-live="polite">Collect coins and avoid creatures.</p>
-      <div class="combat-readout"><p id="dash-status" role="status">Slice ready — Space / Shift</p><p id="p2-dash-status" role="status" hidden></p><p id="rage-status" role="status" aria-live="polite"></p></div>
+      <div class="combat-readout"><p id="strike-status" role="status">Slice ready — Space / Shift</p><p id="p2-strike-status" role="status" hidden></p><p id="rage-status" role="status" aria-live="polite"></p></div>
+      <p id="kill-status" class="kill-readout" role="status" aria-live="polite"></p>
       <div id="powerup-status" class="powerup-readout" role="status" aria-live="polite"></div>
       <div id="touch-controls" aria-label="Touch game controls"></div>
       <p class="controls-help"><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move · <kbd>Space</kbd> Slice · <kbd>F</kbd> Shoot · <kbd>P</kbd> Pause <span class="desktop-hint">· Every coin +3s</span></p>
@@ -51,7 +52,7 @@
   </form>
   <section class="panel"><h2 class="panel-title">SOUND &amp; REACTIONS</h2><div id="audio-controls"></div><div id="reaction-controls"></div></section>
   <section class="panel"><h2 class="panel-title">MISSIONS &amp; RECORD</h2><div id="mission-status" role="status"></div><div id="progress-status" role="status"></div></section>
-  <section class="panel"><h2 class="panel-title">HOW TO PLAY</h2><p>Space or Shift: samurai slice. F: shoot. P / Escape: pause. R: restart. Shield coins block a hit, magnets pull gold, and speed coins give a 5-second boost.</p><p>2P: P1 uses WASD, Space/Shift and F. P2 uses arrows, Enter and L. Separate lives and scores; shared timer. M switches mode and restarts.</p></section>
+  <section class="panel"><h2 class="panel-title">HOW TO PLAY</h2><p>Space or Shift: sword strike in your facing direction. A kill reloads instantly; a missed strike costs 1 second. Chain kills within 2.5 seconds for a combo. F: shoot; shooting kills also reload immediately. P / Escape: pause. R: restart. Shield coins block a hit, magnets pull gold, and speed coins give a 5-second boost.</p><p>2P: P1 uses WASD, Space/Shift and F. P2 uses arrows, Enter and L. Separate lives and scores; shared timer. M switches mode and restarts.</p></section>
 </dialog>
 <script src="vendor/phaser-3.90.0.min.js"></script>
 <script src="settings.js"></script>

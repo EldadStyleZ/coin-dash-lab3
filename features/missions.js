@@ -10,7 +10,7 @@
       this.allComplete = false;
       this.goals = [
         { id: 'coins', label: 'Collect 5 coins', target: 5, progress: 0, complete: false, praise: 'Coin collector! Five coins collected.' },
-        { id: 'dashes', label: 'Dash 3 times', target: 3, progress: 0, complete: false, praise: 'Dash master! Three successful dashes.' },
+        { id: 'strikes', label: 'Strike 3 times', target: 3, progress: 0, complete: false, praise: 'Sword master! Three strikes.' },
         { id: 'level', label: 'Reach level 3', target: 3, progress: 1, complete: false, praise: 'Level three reached! Keep it up.' }
       ];
       this.element = root.document ? root.document.getElementById('mission-status') : null;
@@ -28,9 +28,9 @@
       this.progress('coins', 1);
     }
 
-    dash() {
+    strike() {
       if (!this.active()) return;
-      this.progress('dashes', 1);
+      this.progress('strikes', 1);
     }
 
     progress(id, amount) {

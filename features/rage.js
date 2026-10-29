@@ -5,7 +5,7 @@
   const RAGE_INTERVAL_MS = 12000;
   const RAGE_DURATION_MS = 4000;
   const RAGE_TINT = 0xff3030;
-  const MAX_CHASE_SPEED = 360;
+  const MAX_CHASE_SPEED = 180;
 
   class CoinDashRage {
     constructor(scene) {
@@ -89,7 +89,8 @@
       const dy = player.y - enemy.y;
       const length = Math.hypot(dx, dy);
       if (!Number.isFinite(length)) return;
-      const speed = Math.min(MAX_CHASE_SPEED, this.saved.speed * 1.4);
+      // Halve both the previous multiplier and cap, including high-level enemies.
+      const speed = Math.min(MAX_CHASE_SPEED, this.saved.speed * 0.7);
       enemy.body.setVelocity(length > 0 ? dx / length * speed : 0, length > 0 ? dy / length * speed : 0);
     }
 

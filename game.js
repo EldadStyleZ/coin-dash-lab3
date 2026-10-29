@@ -61,11 +61,11 @@
       this.powerups = new window.CoinDashPowerups(this);
       this.rage = new window.CoinDashRage(this);
       this.abilities = new window.CoinDashAbilities(this);
-      const onDash = () => this.missions.dash();
-      this.events.on('player-dash', onDash);
+      const onStrike = () => this.missions.strike();
+      this.events.on('player-strike', onStrike);
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
-        onDash: () => this.abilities.dash(this.runTime) });
+        onStrike: () => this.abilities.strike(this.runTime) });
       const onSpecialCoin = coin => this.collectCoin(coin.x, coin.y, coin.runnerId);
       this.events.on('special-coin', onSpecialCoin);
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -111,7 +111,7 @@
         this.input.keyboard.off('keydown-M', onMode);
         window.removeEventListener('keydown', onArenaKey);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
-        this.events.off('player-dash', onDash);
+        this.events.off('player-strike', onStrike);
         this.events.off('special-coin', onSpecialCoin);
         this.combat.destroy();
         this.nearMiss.destroy();
@@ -264,7 +264,8 @@
       setText('level-value', String(this.level).padStart(2, '0'));
       setText('time-value', `${this.round.secondsRemaining}s`);
       setText('enemy-value', this.drones.getLength());
-      this.levelHint.setText(`LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`);
+      const hint = `LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`;
+      if (this.levelHint.text !== hint) this.levelHint.setText(hint);
     }
     setPaused(paused) {
       if (this.finished || this.paused === paused) return;

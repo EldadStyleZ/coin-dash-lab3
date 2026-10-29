@@ -37,8 +37,8 @@ canvas { display: block; max-width: 100%; image-rendering: pixelated; }
 #game canvas { margin-inline: auto; }
 #game-status { color: var(--muted); font-size: 11px; min-height: 16px; line-height: 1.35; }
 .combat-readout { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font: 11px/1.4 ui-monospace, monospace; }
-#dash-status { color: var(--mint); }
-#p2-dash-status { color: #8bd5ff; }
+#strike-status { color: var(--mint); }
+#p2-strike-status { color: #8bd5ff; }
 #rage-status { color: #ff9c9c; margin-left: auto; }
 .powerup-readout { font-size: 11px; color: #d7c6ff; line-height: 1.35; }
 .controls-help { font-size: 11px; color: var(--muted); text-align: center; flex: none; }
@@ -91,4 +91,29 @@ input[type="checkbox"] { accent-color: var(--mint); width: 17px; height: 17px; v
   h1 { font-size: 22px; }
   .stat-card { padding: 2px 10px; }
   .stat-value { font-size: 17px; }
+}
+
+.kill-readout { color: var(--gold); font-size: 11px; line-height: 1.35; font-weight: 700; }
+.kill-readout:empty { display: none; }
+
+/* Landscape phones keep controls beside the arena instead of shrinking it below them. */
+@media (max-width: 900px) and (min-width: 600px) and (max-height: 560px),
+       (pointer: coarse) and (min-width: 600px) and (max-height: 560px) {
+  .game-stage { display: grid; grid-template-columns: minmax(0, 1fr) 168px;
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "arena touch" "status touch" "combat touch" "chain touch"; gap: 3px 12px; }
+  #game { grid-area: arena; height: 100%; aspect-ratio: auto; }
+  #game-status { grid-area: status; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .combat-readout { grid-area: combat; }
+  .kill-readout { grid-area: chain; }
+  .game-stage #touch-controls { grid-area: touch; margin: 0; align-self: center; }
+  .game-stage .coin-touch-controls { flex-direction: column; padding: 8px; gap: 8px; }
+  .game-stage .coin-touch-pad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(2, 42px); gap: 4px; }
+  .game-stage .coin-touch-button { min-width: 42px; min-height: 42px; }
+  .game-stage .coin-touch-strike { width: 100%; min-height: 42px; }
+}
+@media (max-width: 380px) {
+  .game-brand .eyebrow { display: none; }
+  .toolbar-actions #start-game { font-size: 0; min-width: 36px; }
+  .toolbar-actions #start-game::before { content: "↻"; font-size: 22px; }
 }
