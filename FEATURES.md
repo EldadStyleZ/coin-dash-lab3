@@ -278,3 +278,10 @@ Both sides update their own status files after milestones and record failed chec
 - Browser smoke check: normal Space lunge, miss recovery and pause work without
   console warnings/errors. The restored afterimage animation and disabled Shift
   remain intact. Versioned combat asset prevents loading the old proximity logic.
+
+## Performance-aware feedback and missed-dash penalty
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| FEEDBACK-STATE | Per-player performance streaks, failure resets and contextual callouts | Eldad feedback agent | implementing | eldad/feedback-state; features/reactions.js, tests/reactions.test.cjs | Coin praise at 3/6/10 quick coins; kill praise from actual 2/3/5 kill chains; misses/damage/gaps reset; clear invalid praise; idle means no coin or kill success. Keep speech throttling and factual rewards. |
+| MISS-PENALTY | Longer missed-dash cooldown and successful-kill mission wiring | Eldad coordinator | implementing | eldad/feedback-integration; features/abilities.js, features/combat.js, features/missions.js, game.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/missions.test.cjs, tests/integration.test.cjs, index.html, README.md, docs/feature-contract.md | Increase cooldown from 1000 to 1800ms, retain instant kill reset; replace three attempts mission with three actual sword kills; emit typed miss/kill events and reset combat chain on damage. Preserve collision-only kills and original animation. |
