@@ -238,6 +238,8 @@
     finish(reason) {
       if (this.finished) return;
       this.finished = true;
+      // Normal update stops after game over; restore temporary enemy state now.
+      this.rage.update(this.runTime, 0);
       this.round.finish();
       this.touch.reset();
       this.scoring.finish(this.score, this.level);
