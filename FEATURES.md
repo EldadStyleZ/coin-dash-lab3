@@ -174,4 +174,11 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| PAGES | Public GitHub Pages game URL | Eldad coordinator | implementing | eldad/pages; .nojekyll, README.md | Publish main root, verify HTTPS and local asset paths online |
+| PAGES | Public GitHub Pages game URL | Eldad coordinator | done | eldad/pages; .nojekyll, README.md | Publish main root, verify HTTPS and local asset paths online |
+
+
+- PAGES deployed successfully over HTTPS from `main` root. Public URL:
+  https://eldadstylez.github.io/coin-dash-lab3/ . Build/deployment run 40857013141
+  succeeded. Live browser check loaded sprites and UI, started a fresh round,
+  performed Space slicing and pause, and reported no console errors.
+  `.nojekyll` serves the existing static assets directly; no gameplay changes.
