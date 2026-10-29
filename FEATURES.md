@@ -19,8 +19,7 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | LEVELS | Levels get harder over time | Eldad coordinator | done | eldad/core; game.js, settings.js, index.html | Scale speed and add enemies with caps; preserve enemy type metadata |
 | AUDIO | Background music and action sounds | Eldad audio agent | done | eldad/audio; features/audio.js | Offline synthesis; gesture unlock, mute and volume; restart cleanup |
 | LIVES | Life system and hit invulnerability | Eldad lives agent | done | eldad/lives; features/lives.js, tests/lives.test.cjs | Multi-life hits, temporary immunity, last-life game over, clean restart |
-| ENEMY-TYPES | Enemy varieties / behaviors | Hila's AI | planned | Hila to fill in branch and owned files | Reserved for Hila by the pair; Eldad must not implement enemy varieties |
-
+| ENEMY-TYPES | Chaser, Patroller, Zipper behaviors | Hila's AI | awaiting integration | feat/enemy-types; 667692d | Pushed on old core; Hila owns port to optional enemy module and will request hooks in HILA_STATUS.md |
 | DASH | Shift dash with cooldown and touch dash button | Eldad abilities agent | awaiting integration | eldad/dash; features/abilities.js, tests/abilities.test.cjs | Class with active-time cooldown; no changes to Hila's enemies |
 | SCORING | Coin combos, personal bests and achievements | Eldad scoring agent | awaiting integration | eldad/scoring; features/scoring.js, tests/scoring.test.cjs | Separate class; defensive local storage, settings-specific best |
 | TOUCH | Pointer/touch directional controls | Eldad controls agent | awaiting integration | eldad/touch; features/controls.js, features/controls.css, tests/controls.test.cjs | Multi-pointer, release/cancel/blur cleanup, keyboard support stays in core |
@@ -34,9 +33,8 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 | REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | awaiting integration | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
 | MISSIONS | Short mastery goals and completion badges | Eldad missions agent | awaiting integration | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
 | POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | awaiting integration | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
-
 | ARENA | Level palettes and starting obstacles | Eldad arena agent | awaiting integration | eldad/arena; features/arena.js, tests/arena.test.cjs | Clear routes, player/enemy wall collisions, safe-spawn query |
-| RAGE | One temporary red chasing enemy with angry sound | Eldad rage agent | awaiting integration | eldad/rage; features/rage.js, tests/rage.test.cjs | No pushed Hila work/claim found at last fetch; additive overlay only, Hila keeps enemy varieties; can disable if she already owns rage |
+| RAGE | One temporary red chasing enemy with angry sound | Eldad rage agent | awaiting integration | eldad/rage; features/rage.js, tests/rage.test.cjs | Hila confirmed no rage overlap in da33ad2; additive overlay after normal enemy movement |
 
 ## Shared integration boundary
 
@@ -47,10 +45,45 @@ Hila may skip marked enemies while rage controls their velocity, or request that
 this overlay be disabled if her module already implements rage.
 
 Hila: implement enemy varieties in a separate module (suggested
-`features/enemies.js`) and describe required wiring here, or coordinate a handoff
+`features/enemies.js`) and describe required wiring in HILA_STATUS.md, or coordinate a handoff
 before editing those shared files. Do not overwrite another owner's integration.
 See `docs/feature-contract.md` for stable integration hooks. Core ownership is
 released after integration is checked; this does not reserve shared files forever.
+
+## Hila handoff received (da33ad2)
+
+| ID | Feature | Owner | Status | Branch / commit | Integration decision |
+| --- | --- | --- | --- | --- | --- |
+| HILA-GROUNDWORK | Original shared helpers | Hila | awaiting integration | hila/groundwork 1466aa0 | Earlier core; retain current state classes, request specific missing hooks |
+| DIFFICULTY | Easy / Normal / Hard | Hila | awaiting integration | feat/difficulty 8a0f470 | Port as per-round config selection; keep existing level progression |
+| MULTIPLAYER | Local two-player mode | Hila | awaiting integration | feat/local-multiplayer 6365737 | Needs explicit player/lives/coin contracts before core handoff |
+| NEAR-MISS | Close-call bonus | Hila | awaiting integration | feat/near-miss 8a2e648 | Needs shared score-award hook; do not treat bonus as coin/time reward |
+| SHOOTING | F-key directional shooting | Hila | awaiting integration | feat/shooting 0ef0686 | Preserve branch; depends on adapted enemy kill/respawn contract |
+| COMBO-H | Alternate combo multiplier | Hila | awaiting integration | feat/combo 3928144 | Overlaps current SCORING; propose retaining existing combined-game implementation |
+| POWERUPS-H | Shield / speed / magnet | Hila | awaiting integration | feat/powerups 1b5f212 | Keep existing shield/magnet; propose adding Hila's speed pickup through module |
+| HILA-INTEGRATION | Combined partner branch | Hila | implementing | integration/all-features (not yet remote) | Hila's isolated playtest; no blind whole-core merge |
+| FINAL-QA | Integration cleanup and coin reward regression checks | Eldad integration agent | implementing | eldad/final-integration; game.js, tests/integration.test.cjs | Review found rage cleanup must run on game over; fix before next gameplay push |
+
+User authorized Eldad to integrate all pushed Hila features. Integration ownership
+now transfers to Eldad; Hila keeps authorship and her branches. Overlap resolution: keep the existing Shift/touch dash, scoring
+combo, shield/magnet and lives systems. Add Hila's unique enemy behaviors first;
+coordinate dash-kill and F-shooting through explicit callbacks. Ordinary enemy
+contact must retain the multi-life system. Hila should push completed work and update HILA_STATUS.md; Eldad ports it onto the current core. Eldad is finishing integration QA and
+will release the shared core after the partner integration checkpoint. No partner branch
+is discarded or overwritten.
+
+## Partner integration assignments (user-authorized handoff)
+
+| Work | Owner | Status | Branch / exclusive files |
+| --- | --- | --- | --- |
+| Port Hila enemy types, dash kills and shooting | Eldad enemy port agent | implementing | eldad/hila-enemies; features/enemies.js, features/combat.js, tests/enemies.test.cjs, tests/combat.test.cjs |
+| Port difficulty, near misses, speed pickup; adapt pickups to both players | Eldad extras port agent | implementing | eldad/hila-extras; features/difficulty.js, features/near-miss.js, features/powerups.js, tests/difficulty.test.cjs, tests/near-miss.test.cjs, tests/powerups.test.cjs |
+| Port 2P with per-player lives/scores; integrate all ports | Eldad coordinator | implementing | eldad/pair-core; game.js (after FINAL-QA handoff), index.html, settings.js, style.css, features/multiplayer.js, features/abilities.js, features/scoring.js, features/rage.js, tests/multiplayer.test.cjs, tests/abilities.test.cjs, tests/scoring.test.cjs, tests/integration.test.cjs (after FINAL-QA), README.md, docs/feature-contract.md |
+
+Keep one dash, combo and power-up system. Bring Hila's three enemy behaviors,
+per-type kill points, F shooting, speed pickups, near misses, difficulty presets,
+and two-player mode into those systems. Preserve each partner's source commits
+and credit in port commits. Integrate serially and test the combined game.
 
 ## Checks, failures, and fixes
 
@@ -59,8 +92,9 @@ released after integration is checked; this does not reserve shared files foreve
   and a death after the original 60s is not misreported as round survival.
 - Reactions test initially expected an already-expired reward to remain; corrected
   its expectation. Active-time expiration behavior was retained.
-- Latest partner check: only main exists remotely, no open PRs, HILA_STATUS.md
-  unchanged. Hila's local/unpushed work is not visible; enemy varieties stay hers.
+- Latest partner check: Hila pushed da33ad2 to main plus eight feature/groundwork
+  branches. No PRs. All gameplay branches use the earlier core; preserve them and
+  port agreed features through modules instead of replacing current game.js.
 
 
 - Review also found Phaser global arrow-key capture blocking native settings widgets.
