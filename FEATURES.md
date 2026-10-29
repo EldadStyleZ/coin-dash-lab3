@@ -243,3 +243,9 @@ Both sides update their own status files after milestones and record failed chec
   console warnings/errors. No changes to the slower angry enemy or quieter feedback.
 - This correction supersedes the earlier stationary-strike interpretation above.
 - Deployment check exposed cached old combat scripts in Chrome; versioned the two changed script URLs so reopening the updated page loads the corrected sword dash.
+
+## Sword animation restoration
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| SWORD-ANIMATION | Restore the original dash afterimage animation | Eldad coordinator | implementing | eldad/restore-sword-animation; features/combat.js, tests/combat.test.cjs, index.html, README.md | Compare pre-change combat visuals; restore the lost trailing afterimages and remove the replacement straight blade. Preserve Space lunge, disabled Shift, combos and miss cooldown. |
