@@ -30,7 +30,7 @@ Statuses: `planned`, `implementing`, `awaiting integration`, `done`, `blocked`,
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification / notes |
 | --- | --- | --- | --- | --- | --- |
-| TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | main; features/round.js, tests/round.test.cjs, game.js, index.html, settings.js | Active elapsed difficulty continues; remaining time increases |
+| TIME-BONUS | Every coin adds 3 seconds | Eldad coordinator | implementing | eldad/arcade-core; features/round.js, tests/round.test.cjs, features/scoring.js, game.js, index.html, settings.js, README.md, docs/engagement-design.md | Active elapsed difficulty continues; remaining time increases |
 | REACTIONS | Fast/slow coin reactions, animations and funny voice | Eldad feedback agent | implementing | eldad/reactions; features/reactions.js, features/reactions.css, tests/reactions.test.cjs | WOW/YOU SUPER on fast chains; playful are-you-awake after slow gaps; cooldowns, pause/restart cleanup, local voice only |
 | MISSIONS | Short mastery goals and completion badges | Eldad missions agent | implementing | eldad/missions; features/missions.js, tests/missions.test.cjs | Visible finite goals; coin/level/dash progress; no enemy behavior |
 | POWERUPS | Collectible shield and coin magnet | Eldad powerups agent | implementing | eldad/powerups; features/powerups.js, tests/powerups.test.cjs | Active-time expiry, one-hit shield and short magnet; do not alter Hila's enemy types |
