@@ -35,6 +35,7 @@ class CoinDash extends Phaser.Scene {
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
     this.setupDifficulty();
     this.setupPowerups();
+    this.setupCombo();
   }
 
   // Shield first; otherwise enemy-types decides (dash kill or end of round).
@@ -316,6 +317,56 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.reset(x, y);
   }
 
+  // Combo: coins collected within the window raise a capped multiplier.
+  setupCombo() {
+    this.combo = 1;
+    this.comboUntil = 0;
+    // Only 'coin' counts, so the bonus addScore(..., 'combo') cannot retrigger it.
+    const onScore = (points, reason) => { if (reason === 'coin') this.onComboCoin(); };
+    this.events.on('score', onScore);
+    // this.events survives scene.restart(); drop the listener so it doesn't stack.
+    this.events.once('shutdown', () => this.events.off('score', onScore));
+    this.updaters.push(() => this.updateCombo());
+    this.hudItems.push(() => this.comboHud());
+  }
+
+  onComboCoin() {
+    const cfg = COIN_DASH.combo;
+    const now = this.time.now;
+    this.combo = now < this.comboUntil ? Math.min(this.combo + 1, cfg.maxMultiplier) : 1;
+    this.comboUntil = now + cfg.windowMs;
+    if (this.combo > 1) {
+      this.addScore(this.combo - 1, 'combo');
+      this.showComboPopup(this.combo);
+    }
+  }
+
+  updateCombo() {
+    if (this.combo > 1 && this.time.now >= this.comboUntil) this.combo = 1;
+  }
+
+  comboHud() {
+    if (this.combo <= 1) return '';
+    const { windowMs, barLength } = COIN_DASH.combo;
+    const left = Math.max(0, this.comboUntil - this.time.now) / windowMs;
+    const filled = Math.ceil(left * barLength);
+    // Bar of filled/empty blocks (U+25AE/U+25AF) shows the window left.
+    return `Combo x${this.combo} ${'\u25ae'.repeat(filled)}${'\u25af'.repeat(barLength - filled)}`;
+  }
+
+  showComboPopup(points) {
+    const cfg = COIN_DASH.combo;
+    // The coin hasn't been moved yet when the 'score' event fires, so pop up at it.
+    const popup = this.add.text(this.coin.x, this.coin.y - 14, `+${points}`, {
+      font: 'bold 18px monospace', color: cfg.colors.popup,
+      stroke: cfg.colors.popupStroke, strokeThickness: 4
+    }).setOrigin(0.5);
+    this.tweens.add({
+      targets: popup, y: popup.y - cfg.popupRise, alpha: 0, duration: cfg.popupMs,
+      onComplete: () => popup.destroy()
+    });
+  }
+
   update(time, delta) {
     if (this.finished || this.difficultyMenuOpen) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
@@ -342,7 +393,7 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\n${this.score} points\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
     this.showDifficultyHint();

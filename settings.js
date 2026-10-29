@@ -47,5 +47,14 @@ window.COIN_DASH = {
       speed: { label: 'Speed', letter: '»', color: 0xff9f43 },
       magnet: { label: 'Magnet', letter: 'M', color: 0xb36bff }
     }
+  },
+  // Combo: a coin within windowMs of the previous one raises the multiplier (capped).
+  combo: {
+    windowMs: 2000,
+    maxMultiplier: 5,
+    barLength: 5,
+    popupMs: 700,
+    popupRise: 36,
+    colors: { popup: '#ffd166', popupStroke: '#101c31' }
   }
 };
