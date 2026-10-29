@@ -51,18 +51,27 @@ test('first rage starts at 8s on exactly one red enemy and sound does not repeat
   assert.deepEqual(sounds, ['angry']);
 });
 
-test('chase aims at the current player, scales normal speed by 1.4, and stays bounded', () => {
+test('uncapped chase aims at the current player at half its previous final speed', () => {
   const { rage, members, scene } = setup();
   rage.update(8000, 16);
-  near(members[0].body.velocity.x, 84);
-  near(members[0].body.velocity.y, 112);
+  near(members[0].body.velocity.x, 42);
+  near(members[0].body.velocity.y, 56);
   scene.player = { x: -100, y: 0 };
   rage.update(8016, 16);
-  near(members[0].body.velocity.x, -140);
+  near(members[0].body.velocity.x, -70);
   near(members[0].body.velocity.y, 0);
-  const fast = setup([enemy(0, 0, 500, 0)]);
-  fast.rage.update(8000, 16);
-  near(Math.hypot(fast.members[0].body.velocity.x, fast.members[0].body.velocity.y), 360);
+});
+
+test('high-level chase halves the old capped speed as well as uncapped boundary cases', () => {
+  for (const normalSpeed of [250, 260, 500, 1000]) {
+    const { rage, members } = setup([enemy(0, 0, normalSpeed, 0)]);
+    rage.update(8000, 16);
+    const speed = Math.hypot(members[0].body.velocity.x, members[0].body.velocity.y);
+    near(speed, Math.min(360, normalSpeed * 1.4) / 2);
+    assert.ok(speed <= 180);
+    rage.update(12000, 16);
+    assert.deepEqual(members[0].body.velocity, { x: normalSpeed, y: 0 });
+  }
 });
 
 test('deadline restores corner tints, fill, metadata and direction then core level speed', () => {
@@ -96,6 +105,7 @@ test('pause freezes active deadlines and does not change chase direction until r
   const { rage, scene, members } = setup();
   rage.update(8000, 16);
   const before = { ...members[0].body.velocity };
+  near(Math.hypot(before.x, before.y), 70);
   scene.paused = true;
   scene.player.x = -500;
   rage.update(20000, 12000);
@@ -104,6 +114,7 @@ test('pause freezes active deadlines and does not change chase direction until r
   scene.paused = false;
   rage.update(8100, 100);
   assert.ok(members[0].body.velocity.x < 0);
+  near(Math.hypot(members[0].body.velocity.x, members[0].body.velocity.y), 70);
   assert.equal(members[0].getData('enraged'), true);
 });
 
