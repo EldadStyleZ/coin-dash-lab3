@@ -242,3 +242,4 @@ Both sides update their own status files after milestones and record failed chec
   stationary, Space lunges forward, miss recovery appears, and pause works; no
   console warnings/errors. No changes to the slower angry enemy or quieter feedback.
 - This correction supersedes the earlier stationary-strike interpretation above.
+- Deployment check exposed cached old combat scripts in Chrome; versioned the two changed script URLs so reopening the updated page loads the corrected sword dash.
