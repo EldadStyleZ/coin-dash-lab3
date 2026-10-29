@@ -87,10 +87,10 @@
       // Phaser receives the event first at window. Cancelling it on #game would
       // make Phaser ignore Space and arrows before they reach its keyboard listener.
       const onArenaKey = event => {
-        if (el('game').contains(event.target) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
+        if (window.CoinDashGameUI.preventsPageScroll(event, window.coinDashUI?.isOpen())) event.preventDefault();
       };
       window.addEventListener('keydown', onArenaKey);
-      const ignoresInput = event => /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target?.tagName || '');
+      const ignoresInput = event => window.coinDashUI?.isOpen() || event.target?.isContentEditable || /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target?.tagName || '');
       const onRestart = event => { if (!ignoresInput(event)) this.restartRound(); };
       const onPause = event => { if (!ignoresInput(event) && !event.repeat) this.setPaused(!this.paused); };
       const onMode = event => {
@@ -314,6 +314,7 @@
     scene: CoinDash
   });
   const scene = () => window.coinDashGame.scene.getScene('CoinDash');
-  el('round-settings').addEventListener('submit', event => { event.preventDefault(); scene().restartRound(); el('game').focus({ preventScroll: true }); });
+  window.coinDashUI = window.CoinDashGameUI ? new window.CoinDashGameUI(scene) : null;
+  el('round-settings').addEventListener('submit', event => { event.preventDefault(); window.coinDashUI?.close(false); scene().restartRound(); el('game').focus({ preventScroll: true }); });
   el('pause-game').addEventListener('click', () => { const active = scene(); active.setPaused(!active.paused); el('game').focus({ preventScroll: true }); });
 })();
