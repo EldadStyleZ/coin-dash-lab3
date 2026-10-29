@@ -91,7 +91,9 @@
         } catch (_) { /* Keep a session best even when persistence is unavailable. */ }
       }
       const duration = this.scene.config && this.scene.config.roundSeconds;
-      const survived = Number.isFinite(duration) && duration > 0 && this.scene.runTime >= duration * 1000;
+      const survived = this.scene.round
+        ? this.scene.round.secondsRemaining === 0
+        : Number.isFinite(duration) && duration > 0 && this.scene.runTime >= duration * 1000;
       this.message = `${survived ? 'Achievement: round survived!' : 'Round finished'} · ${finalScore} points · level ${finalLevel}`;
       if (finalScore > previousBest) this.message += ' · New personal best!';
       this.combo = 1;

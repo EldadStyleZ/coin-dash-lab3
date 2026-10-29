@@ -123,6 +123,11 @@
         case 'level':
           [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.18, i * 0.09, 'effect', 'triangle', 0.22));
           break;
+        case 'angry':
+          tone(110, 0.22, 0, 'effect', 'sawtooth', 0.16);
+          tone(73.42, 0.28, 0.12, 'effect', 'triangle', 0.2);
+          tone(55, 0.3, 0.23, 'effect', 'sawtooth', 0.1);
+          break;
         case 'gameover':
           [392, 329.63, 261.63, 130.81].forEach((f, i) => tone(f, 0.25, i * 0.13, 'effect', 'triangle', 0.2));
           break;

@@ -45,6 +45,7 @@
       this.dashEndsAt = time + DASH_DURATION_MS;
       this.nextDashAt = time + DASH_COOLDOWN_MS;
       this.renderStatus(time);
+      this.scene.events?.emit?.('player-dash');
       return true;
     }
 

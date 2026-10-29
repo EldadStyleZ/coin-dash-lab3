@@ -33,8 +33,7 @@
       this.paused = false;
       this.physics.resume();
       this.physics.world.setBounds(16, 44, c.width - 32, c.height - 60);
-      this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 32, 32,
-        c.colors.background, 1, 0x24334b, 0.4);
+      this.arena = new window.CoinDashArena(this);
       this.add.text(22, 13, 'COLLECT / EVADE / SURVIVE', { font: '12px monospace', color: '#8dabc9' });
       this.levelHint = this.add.text(c.width - 22, 13, '', { font: '12px monospace', color: '#71e8ce' }).setOrigin(1, 0);
       const visuals = window.CoinDashVisuals;
@@ -49,21 +48,30 @@
       this.placeCoin();
       this.drones = this.physics.add.group();
       for (let i = 0; i < c.droneCount; i++) this.spawnDrone(i);
+      this.arena.attach(this.player, this.drones);
       this.lives = window.CoinDashLives.create(this, { maxLives: startingLives, invulnerabilityMs: c.invulnerabilityMs });
       this.audio = window.CoinDashAudio.create(this);
+      this.reactions = new window.CoinDashReactions(this);
+      this.missions = new window.CoinDashMissions(this);
+      this.powerups = new window.CoinDashPowerups(this);
+      this.rage = new window.CoinDashRage(this);
       this.abilities = new window.CoinDashAbilities(this);
+      const onDash = () => this.missions.dash();
+      this.events.on('player-dash', onDash);
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
         onDash: () => this.abilities.dash(this.runTime) });
       this.physics.add.overlap(this.player, this.coin, () => {
         if (this.finished || this.paused) return;
-        this.score = this.scoring.collect(this.runTime).total;
-        this.audio.play('coin');
+        this.collectCoin(this.coin.x, this.coin.y);
         this.placeCoin();
         this.updateHud();
       });
+      const onSpecialCoin = coin => this.collectCoin(coin.x, coin.y);
+      this.events.on('special-coin', onSpecialCoin);
       this.physics.add.overlap(this.player, this.drones, () => {
         if (this.finished || this.paused) return;
+        if (this.powerups.absorbHit(this.runTime)) return;
         const hit = this.lives.hit(this.runTime);
         if (!hit.damaged) return;
         this.audio.play('hit');
@@ -89,15 +97,34 @@
         this.input.keyboard.off('keydown-P', onPause);
         this.input.keyboard.off('keydown-ESC', onPause);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
+        this.events.off('player-dash', onDash);
+        this.events.off('special-coin', onSpecialCoin);
         this.lives.destroy();
         this.audio.destroy();
         this.abilities.destroy();
         this.scoring.destroy();
         this.touch.destroy();
+        this.reactions.destroy();
+        this.missions.destroy();
+        this.powerups.destroy();
+        this.rage.destroy();
+        this.arena.destroy();
       });
       el('pause-game').textContent = 'Pause';
       el('pause-game').disabled = false;
       el('game-status').textContent = 'Round started. Collect gold and dodge the swarm!';
+      this.updateHud();
+    }
+    isSpawnClear(x, y, radius = 20) { return this.arena.isClear(x, y, radius); }
+    collectCoin(x, y) {
+      if (this.finished || this.paused) return;
+      const result = this.scoring.collect(this.runTime);
+      this.score = result.total;
+      const seconds = this.config.coinBonusSeconds;
+      this.round.addTime(seconds * 1000);
+      this.reactions.coin(this.runTime, { points: result.points, x, y, bonusSeconds: seconds });
+      this.missions.coin();
+      this.audio.play('coin');
       this.updateHud();
     }
     spawnDrone(index, type = 'drone') {
@@ -108,7 +135,7 @@
       let position = candidates[index % candidates.length];
       for (let attempt = 0; attempt < 40; attempt++) {
         const next = { x: Phaser.Math.Between(40, c.width - 40), y: Phaser.Math.Between(70, c.height - 40) };
-        if (Phaser.Math.Distance.Between(next.x, next.y, this.player.x, this.player.y) >= 180) { position = next; break; }
+        if (this.isSpawnClear(next.x, next.y, 20) && Phaser.Math.Distance.Between(next.x, next.y, this.player.x, this.player.y) >= 180) { position = next; break; }
       }
       if (Phaser.Math.Distance.Between(position.x, position.y, this.player.x, this.player.y) < 150) {
         position = candidates.reduce((best, point) =>
@@ -139,11 +166,20 @@
     }
     placeCoin() {
       const c = this.config;
-      let x = 40, y = 70;
+      let x = 40, y = 70, found = false;
       for (let attempt = 0; attempt < 50; attempt++) {
         x = Phaser.Math.Between(35, c.width - 35);
         y = Phaser.Math.Between(65, c.height - 35);
-        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= 60) break;
+        if (this.isSpawnClear(x, y, 14) && Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= 60) { found = true; break; }
+      }
+      if (!found) {
+        search: for (let row = 70; row < c.height - 30; row += 30) {
+          for (let column = 40; column < c.width - 30; column += 30) {
+            if (this.isSpawnClear(column, row, 14) && Phaser.Math.Distance.Between(column, row, this.player.x, this.player.y) >= 60) {
+              x = column; y = row; break search;
+            }
+          }
+        }
       }
       this.coin.setPosition(x, y);
       this.coin.body.reset(x, y);
@@ -157,6 +193,7 @@
       if (tick.gainedLevels > 0) {
         const gained = tick.gainedLevels;
         this.level = this.round.level;
+        this.arena.setLevel(this.level);
         for (let i = 0; i < gained; i++) this.spawnDrone(this.drones.getLength());
         this.drones.getChildren().forEach(enemy => this.setEnemySpeed(enemy));
         window.CoinDashEnemies?.levelChanged?.(this, this.level);
@@ -170,8 +207,12 @@
       const velocity = this.abilities.velocity(dx, dy, this.runTime);
       this.player.body.setVelocity(velocity.x, velocity.y);
       this.scoring.update(this.runTime);
+      this.reactions.update(this.runTime);
+      this.missions.update(this.runTime);
+      this.powerups.update(this.runTime, delta);
       this.lives.update(this.runTime);
       window.CoinDashEnemies?.update?.(this, delta);
+      this.rage.update(this.runTime, delta);
       this.updateHud();
     }
     updateHud() {
@@ -187,6 +228,7 @@
       this.round.setPaused(paused);
       this.touch.reset();
       this.audio.setPaused(paused);
+      this.reactions.setPaused(paused);
       if (paused) { this.physics.pause(); this.player.body.setVelocity(0, 0); }
       else this.physics.resume();
       el('pause-game').textContent = paused ? 'Resume' : 'Pause';
@@ -202,9 +244,10 @@
       this.physics.pause();
       this.audio.play('gameover');
       this.audio.setPaused(true);
+      this.reactions.setPaused(true);
       this.updateHud();
       el('pause-game').disabled = true;
-      el('game-status').textContent = `${reason} ${this.score} points scored. Reached level ${this.level}. Start a new round to play again.`;
+      el('game-status').textContent = `${reason} ${this.score} ${this.score === 1 ? 'point' : 'points'} scored. Reached level ${this.level}. Start a new round to play again.`;
       const c = this.config;
       this.add.rectangle(c.width / 2, c.height / 2, 480, 180, 0x0a1120, 0.96).setDepth(20);
       this.add.text(c.width / 2, c.height / 2,
