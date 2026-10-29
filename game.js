@@ -7,13 +7,16 @@ class CoinDash extends Phaser.Scene {
     this.score = 0;
     this.finished = false;
     // Features push per-frame functions (time, delta) and HUD functions returning text.
+    // hudHeader items share the first HUD line with score and time; hudItems fill the second.
     this.updaters = [];
+    this.hudHeader = [];
     this.hudItems = [];
     this.deadline = this.time.now + this.getRoundSeconds() * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
-    this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
+    // Two lines that fit the 44px band above the arena.
+    this.hud = this.add.text(18, 4, '', { font: '15px monospace', color: '#ffffff', lineSpacing: 4 });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
@@ -22,30 +25,43 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.setCircle(9);
     this.placeCoin();
     this.drones = this.physics.add.group();
-    this.spawnEnemies();
-    this.setupDash();
-    this.setupShooting();
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.addScore(1, 'coin');
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, (player, enemy) => this.onDroneContact(enemy));
-    this.setupNearMiss();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    // Updaters run in push order: base movement (update) -> 2P override -> Speed scale ->
+    // dash override; shots, close calls and combo then see the final movement.
     this.setupDifficulty();
+    this.setupMultiplayer(); // swaps the overlaps above in 2P, so enemies spawn clear of both
+    this.spawnEnemies();
     this.setupPowerups();
+    this.setupDash();
+    this.setupShooting();
+    this.setupNearMiss();
     this.setupCombo();
-    this.setupMultiplayer();
   }
 
-  // Shield first; otherwise enemy-types decides (dash kill or end of round).
-  onDroneContact(enemy) {
-    if (this.isShielded()) return;
-    this.onEnemyHit(enemy);
+  // The one enemy-contact path: shield, then dash kill, then a 2P knock-out or the end of
+  // the round. Shield and dash belong to P1 (this.player); P2 is always knocked out.
+  onDroneContact(enemy, player = this.player) {
+    if (player === this.player && this.isShielded()) return;
+    this.onEnemyHit(enemy, player);
   }
+
+  // Players still in play: P1 alone in 1P, or those not knocked out in 2P.
+  activePlayers() {
+    return this.twoPlayer ? this.mpPlayers.filter(p => !p.out).map(p => p.sprite) : [this.player];
+  }
+
+  p1InPlay() { return this.activePlayers().includes(this.player); }
+
+  // In 2P the P1-only extras (dash, power-ups) are labelled in the HUD.
+  p1Tag() { return this.twoPlayer ? 'P1 ' : ''; }
 
   // Power-ups: a pickup spawns every spawnEvery seconds and despawns after lifetime.
   // Only one effect is active at a time; a new pickup replaces it with a fresh timer.
@@ -55,13 +71,12 @@ class CoinDash extends Phaser.Scene {
     this.powerup = null;  // active effect: { kind, until }
     this.pickup = null;   // uncollected pickup: { kind, expires, view }
     this.shieldGlow = null;
-    this.powerupHud = '';
     this.powerupTimer = this.time.addEvent({
       delay: p.spawnEvery * 1000, startAt: (p.spawnEvery - p.firstSpawn) * 1000,
       loop: true, callback: () => this.spawnPowerup()
     });
     this.updaters.push(() => this.updatePowerups());
-    this.hudItems.push(() => (this.powerupHud = this.powerup ? `${p.kinds[this.powerup.kind].label} `
+    this.hudItems.push(() => (this.powerup ? `${this.p1Tag()}${p.kinds[this.powerup.kind].label} `
       + `${Math.ceil((this.powerup.until - this.time.now) / 1000)}s` : ''));
   }
 
@@ -94,8 +109,8 @@ class CoinDash extends Phaser.Scene {
     if (pickup) {
       const left = pickup.expires - now;
       if (left <= 0) this.removePickup();
-      else if (Phaser.Math.Distance.Between(pickup.view.x, pickup.view.y, this.player.x, this.player.y)
-        < p.radius + 12) {
+      else if (this.p1InPlay() && Phaser.Math.Distance.Between(pickup.view.x, pickup.view.y,
+        this.player.x, this.player.y) < p.radius + 12) {
         this.removePickup();
         this.activatePowerup(pickup.kind);
       } else {
@@ -136,8 +151,7 @@ class CoinDash extends Phaser.Scene {
     this.endPowerup();
     this.removePickup();
     if (this.powerupTimer) this.time.removeEvent(this.powerupTimer);
-    // The HUD freezes when the round ends; drop the stale countdown from it.
-    if (this.powerupHud) this.hud.setText(this.hud.text.replace(`   ${this.powerupHud}`, ''));
+    // finish() redraws the HUD after this, so the ended effect's countdown drops out of it.
   }
 
   isShielded() {
@@ -210,15 +224,22 @@ class CoinDash extends Phaser.Scene {
     return enemy;
   }
 
-  // Random arena point at least spawnDistance away from the player.
+  // Random arena point at least spawnDistance away from every player in play.
   findEnemySpot() {
     const b = this.physics.world.bounds, min = COIN_DASH.enemyTypes.spawnDistance;
     let x, y, tries = 0;
     do {
       x = Phaser.Math.Between(b.left + 30, b.right - 30);
       y = Phaser.Math.Between(b.top + 30, b.bottom - 30);
-    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < min && ++tries < 50);
+    } while (this.activePlayers().some(p => Phaser.Math.Distance.Between(x, y, p.x, p.y) < min)
+      && ++tries < 50);
     return { x, y };
+  }
+
+  // Chasers home in on the nearest player still in play.
+  nearestPlayer(x, y) {
+    const d = p => Phaser.Math.Distance.Between(x, y, p.x, p.y);
+    return this.activePlayers().sort((a, b) => d(a) - d(b))[0];
   }
 
   getEnemySpeed(enemy) { return this.getDroneSpeed() * (enemy.getData('speedMultiplier') || 1); }
@@ -227,7 +248,7 @@ class CoinDash extends Phaser.Scene {
     this.drones.getChildren().forEach(e => {
       const type = e.getData('type'), speed = this.getEnemySpeed(e);
       if (type === 'chaser') {
-        this.physics.moveToObject(e, this.player, speed);
+        this.physics.moveToObject(e, this.nearestPlayer(e.x, e.y) || this.player, speed);
         e.rotation = e.body.velocity.angle() + Math.PI / 2;
       } else if (type === 'patroller') {
         const axis = e.getData('axis');
@@ -239,11 +260,13 @@ class CoinDash extends Phaser.Scene {
     });
   }
 
-  // Dashing through an enemy destroys it for points; any other contact ends the round.
-  onEnemyHit(enemy) {
+  // P1 dashing through an enemy destroys it for points; any other contact knocks that
+  // player out (2P) or ends the round (1P). Reached through onDroneContact().
+  onEnemyHit(enemy, player = this.player) {
     if (this.finished || !enemy.active) return;
-    if (!this.dash.active) {
-      this.finish(`A ${enemy.getData('type')} caught you!`);
+    if (!this.dash.active || player !== this.player) {
+      if (this.twoPlayer) this.knockOut(this.mpPlayers.find(p => p.sprite === player));
+      else this.finish(`A ${enemy.getData('type')} caught you!`);
       return;
     }
     this.destroyEnemy(enemy, 'enemy');
@@ -284,6 +307,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   updateDash(time) {
+    if (!this.p1InPlay()) return;
     const d = this.dash, cfg = COIN_DASH.dash, v = this.player.body.velocity;
     d.now = time;
     if (!d.active && v.lengthSq() > 0) d.dir.copy(v).normalize();
@@ -309,9 +333,10 @@ class CoinDash extends Phaser.Scene {
   }
 
   dashHudText() {
-    const d = this.dash, left = d.readyAt - d.now;
-    if (d.active) return 'DASH!';
-    return left > 0 ? `Dash ${(left / 1000).toFixed(1)}s` : 'Dash ready';
+    const d = this.dash, left = d.readyAt - d.now, tag = this.p1Tag();
+    if (!this.p1InPlay()) return '';
+    if (d.active) return `${tag}DASH!`;
+    return left > 0 ? `${tag}Dash ${(left / 1000).toFixed(1)}s` : `${tag}Dash ready`;
   }
 
   // Shooting (COIN_DASH.shooting): hold or tap the fire key; bullets fly in the movement
@@ -330,7 +355,8 @@ class CoinDash extends Phaser.Scene {
     const s = this.shot, cfg = COIN_DASH.shooting;
     // A tap during the cooldown stays queued, so quick taps fire at the fire rate.
     // Firing on the frame nearest nextAt keeps a held key at exactly fireRateMs.
-    if ((s.queued || s.key.isDown) && time + delta / 2 >= s.nextAt) {
+    // Shots are P1's, so they stop once P1 is knocked out in 2P.
+    if (this.p1InPlay() && (s.queued || s.key.isDown) && time + delta / 2 >= s.nextAt) {
       s.queued = false;
       if (this.bullets.countActive() < cfg.maxBullets) {
         this.fireBullet();
@@ -345,9 +371,10 @@ class CoinDash extends Phaser.Scene {
     });
   }
 
-  // Held movement keys as a normalised 8-way vector, zero when idle.
+  // Held movement keys as a normalised 8-way vector, zero when idle. In 2P only P1's
+  // WASD count, so P2's arrows never aim P1's shots.
   getMoveInput() {
-    const c = this.cursors, k = this.keys;
+    const c = this.twoPlayer ? this.mpPlayers[0].keys : this.cursors, k = this.keys;
     return new Phaser.Math.Vector2(
       Number(c.right.isDown || k.D.isDown) - Number(c.left.isDown || k.A.isDown),
       Number(c.down.isDown || k.S.isDown) - Number(c.up.isDown || k.W.isDown)).normalize();
@@ -389,8 +416,9 @@ class CoinDash extends Phaser.Scene {
   setupCombo() {
     this.combo = 1;
     this.comboUntil = 0;
-    // Only 'coin' counts, so the bonus addScore(..., 'combo') cannot retrigger it.
-    const onScore = (points, reason) => { if (reason === 'coin') this.onComboCoin(); };
+    // Only coins count ('coin', or 'coin-p1'/'coin-p2' in 2P), so the bonus
+    // addScore(..., 'combo') cannot retrigger it.
+    const onScore = (points, reason) => { if (/^coin(-|$)/.test(reason)) this.onComboCoin(); };
     this.events.on('score', onScore);
     // this.events survives scene.restart(); drop the listener so it doesn't stack.
     this.events.once('shutdown', () => this.events.off('score', onScore));
@@ -445,12 +473,19 @@ class CoinDash extends Phaser.Scene {
     this.player.body.setVelocity(direction.x, direction.y);
     this.updaters.forEach(fn => fn(time, delta));
     if (this.finished) return;
-    const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    const extras = this.hudItems.map(fn => fn()).filter(Boolean);
-    this.hud.setText(extras.length
-      ? [`Coins: ${this.score}`, `Time: ${seconds}s`, ...extras].join('   ')
-      : `Coins: ${this.score}                       Time: ${seconds}s`);
-    if (seconds === 0) this.finish('Time is up!');
+    this.drawHud();
+    if (this.secondsLeft() === 0) this.finish('Time is up!');
+  }
+
+  secondsLeft() { return Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000)); }
+
+  // Line 1: score (bonuses included), time and round setup; line 2: feature status.
+  drawHud() {
+    const texts = items => items.map(fn => fn()).filter(Boolean);
+    this.hud.setText([
+      [`Score: ${this.score}`, `Time: ${this.secondsLeft()}s`, ...texts(this.hudHeader)].join('   '),
+      texts(this.hudItems).join('   ')
+    ].join('\n'));
   }
 
   finish(reason) {
@@ -458,14 +493,19 @@ class CoinDash extends Phaser.Scene {
     this.finished = true;
     this.physics.pause();
     this.stopPowerups();
+    this.drawHud(); // final score, without the ended power-up
     const c = COIN_DASH;
-    this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
-    const summary = this.twoPlayer ? this.multiplayerSummary() : `${this.score} points`;
-    this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${summary}\nPress R to try again`,
+    // 1P: the score. 2P: coins head to head and the winner, then the shared score.
+    const lines = this.twoPlayer
+      ? [reason, this.multiplayerSummary(), `${this.score} points in total`]
+      : [reason, `${this.score} points`];
+    lines.push('Press R to try again');
+    const height = lines.length * 36 + 40;
+    this.add.rectangle(c.width / 2, c.height / 2, 520, height, 0x0a1120, 0.95);
+    this.add.text(c.width / 2, c.height / 2, lines.join('\n'),
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
-    this.showDifficultyHint();
+    this.showDifficultyHint(c.height / 2 + height / 2 + 24);
   }
 
   // Difficulty start screen. difficultyMenuOpen lives on the scene instance like
@@ -475,7 +515,7 @@ class CoinDash extends Phaser.Scene {
     this.difficultyMenuOpen = this.difficultyMenuOpen !== false;
     // Hold the round while choosing: no physics (drones, collisions) and no scene timers.
     this.time.paused = this.difficultyMenuOpen;
-    this.hudItems.push(() => `${this.difficultyLabel()} mode`);
+    this.hudHeader.push(() => `${this.difficultyLabel()} mode`);
     kb.on(`keydown-${COIN_DASH.difficultyMenu.key}`, () => {
       if (!this.difficultyMenuOpen) this.returnToDifficultyMenu();
     });
@@ -544,12 +584,16 @@ class CoinDash extends Phaser.Scene {
     menu.add(this.add.text(cx, 445,
       `Press 1-${names.length} or click to start · ${c.difficultyMenu.keyLabel} returns here`,
       { font: '15px monospace', color: '#9fb3d1' }).setOrigin(0.5));
+    // M works on the menu too (it restarts into the menu), so show which mode is next.
+    menu.add(this.add.text(cx, 470,
+      `${this.twoPlayer ? '2P' : '1P'} game · M switches to ${this.twoPlayer ? '1P' : '2P'}`,
+      { font: '15px monospace', color: '#9fb3d1' }).setOrigin(0.5));
   }
 
-  // Called from finish(): how to get back to the menu (tap works too).
-  showDifficultyHint() {
+  // Called from finish(), below the end panel: how to get back to the menu (tap works too).
+  showDifficultyHint(y = COIN_DASH.height / 2 + 100) {
     const c = COIN_DASH;
-    this.add.text(c.width / 2, c.height / 2 + 100,
+    this.add.text(c.width / 2, y,
       `${c.difficultyMenu.keyLabel}: change difficulty (now ${this.difficultyLabel()})`,
       { font: '16px monospace', color: '#9fb3d1', backgroundColor: '#0a1120',
         padding: { x: 10, y: 6 } }
@@ -572,9 +616,10 @@ class CoinDash extends Phaser.Scene {
   }
 
   // Arm when the player gets close; pay out on leaving range, unless the drone was touched.
-  // A contact that ends the round stops updaters first, so it never pays.
+  // A contact that ends the round stops updaters first, so it never pays. Close calls are P1's.
   checkNearMisses(time) {
     const n = COIN_DASH.nearMiss;
+    if (!this.p1InPlay()) return;
     this.drones.getChildren().forEach(drone => {
       if (!drone.body) return;
       const gap = this.bodyGap(this.player.body, drone.body);
@@ -593,7 +638,11 @@ class CoinDash extends Phaser.Scene {
     if ((drone.nearMiss || null) === state) return;
     drone.nearMiss = state;
     if (!drone.setStrokeStyle) return;
-    if (state === 'armed') drone.setStrokeStyle(2, COIN_DASH.nearMiss.outlineColor, 0.8);
+    // Remember the enemy's own outline (patrollers have one) so disarming restores it.
+    const base = drone.baseStroke = drone.baseStroke || { on: drone.isStroked,
+      width: drone.lineWidth, color: drone.strokeColor, alpha: drone.strokeAlpha };
+    if (state === 'armed') drone.setStrokeStyle(2, COIN_DASH.nearMiss.outlineColor, 0.9);
+    else if (base.on) drone.setStrokeStyle(base.width, base.color, base.alpha);
     else drone.setStrokeStyle();
   }
 
@@ -622,7 +671,7 @@ class CoinDash extends Phaser.Scene {
     this.mpPlayers = [];
     this.player2 = null;
     this.input.keyboard.on('keydown-M', () => this.toggleMultiplayer());
-    this.hudItems.push(() => this.multiplayerHud());
+    this.hudHeader.push(() => this.multiplayerHud());
     if (!this.twoPlayer) return;
     const m = COIN_DASH.multiplayer;
     this.player.body.reset(...m.p1Start);
@@ -643,7 +692,9 @@ class CoinDash extends Phaser.Scene {
     this.mpPlayers.forEach(p => {
       Object.assign(p, { score: 0, out: false });
       this.physics.add.overlap(p.sprite, this.coin, () => this.collectCoinFor(p));
-      this.physics.add.overlap(p.sprite, this.drones, () => this.knockOut(p));
+      // Same contact path as 1P (shield and dash apply to P1), ending in knockOut(p).
+      this.physics.add.overlap(p.sprite, this.drones,
+        (sprite, enemy) => this.onDroneContact(enemy, sprite));
     });
     this.placeCoinAwayFromPlayers();
     this.showPlayerHints();
@@ -689,6 +740,7 @@ class CoinDash extends Phaser.Scene {
     p.sprite.body.stop();
     p.sprite.body.enable = false;
     p.sprite.setFillStyle(m.outColor).setAlpha(m.outAlpha);
+    if (p.sprite === this.player) this.endPowerup(); // P1's power-up goes with it
     if (this.mpPlayers.every(q => q.out)) this.finish('Both players were caught!');
   }
 
