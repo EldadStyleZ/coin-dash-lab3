@@ -75,5 +75,10 @@ window.COIN_DASH = {
     outColor: 0x55607a,
     outAlpha: 0.5,
     hintSeconds: 2.5
-  }
+  },
+  // Shooting: tap or hold `key` to fire (one shot per fireRateMs) in the movement/facing
+  // direction. bulletSpeed is px/s; bullets spawn spawnOffset px ahead of the player, at
+  // most maxBullets at once. flashMs is the muzzle flash length.
+  shooting: { key: 'F', fireRateMs: 250, bulletSpeed: 520, bulletRadius: 4, bulletColor: 0xb8ff3c,
+    maxBullets: 8, spawnOffset: 18, flashMs: 90 }
 };

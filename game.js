@@ -24,6 +24,7 @@ class CoinDash extends Phaser.Scene {
     this.drones = this.physics.add.group();
     this.spawnEnemies();
     this.setupDash();
+    this.setupShooting();
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.addScore(1, 'coin');
@@ -241,12 +242,18 @@ class CoinDash extends Phaser.Scene {
   // Dashing through an enemy destroys it for points; any other contact ends the round.
   onEnemyHit(enemy) {
     if (this.finished || !enemy.active) return;
-    const type = enemy.getData('type'), cfg = COIN_DASH.enemyTypes;
     if (!this.dash.active) {
-      this.finish(`A ${type} caught you!`);
+      this.finish(`A ${enemy.getData('type')} caught you!`);
       return;
     }
-    this.addScore(cfg[type].points, `enemy-${type}`);
+    this.destroyEnemy(enemy, 'enemy');
+  }
+
+  // Shared kill path (dash: cause 'enemy', shots: 'shot'): per-type points with
+  // addScore reason `${cause}-${type}`, a "+N" popup, then a respawn.
+  destroyEnemy(enemy, cause) {
+    const type = enemy.getData('type'), cfg = COIN_DASH.enemyTypes;
+    this.addScore(cfg[type].points, `${cause}-${type}`);
     this.showPopup(enemy.x, enemy.y, `+${cfg[type].points}`, cfg[type].color);
     enemy.destroy();
     // Respawn later, away from the player, so the arena never empties out.
@@ -305,6 +312,65 @@ class CoinDash extends Phaser.Scene {
     const d = this.dash, left = d.readyAt - d.now;
     if (d.active) return 'DASH!';
     return left > 0 ? `Dash ${(left / 1000).toFixed(1)}s` : 'Dash ready';
+  }
+
+  // Shooting (COIN_DASH.shooting): hold or tap the fire key; bullets fly in the movement
+  // direction (or the dash's facing direction when idle) and destroy enemies they hit.
+  setupShooting() {
+    this.shot = { queued: false, nextAt: 0 };
+    this.bullets = this.physics.add.group();
+    // Queue presses from the 'down' event so sub-frame taps still fire (see setupDash).
+    this.shot.key = this.input.keyboard.addKey(COIN_DASH.shooting.key);
+    this.shot.key.on('down', () => { this.shot.queued = true; });
+    this.physics.add.overlap(this.bullets, this.drones, this.onBulletHit, null, this);
+    this.updaters.push((time, delta) => this.updateShooting(time, delta));
+  }
+
+  updateShooting(time, delta) {
+    const s = this.shot, cfg = COIN_DASH.shooting;
+    // A tap during the cooldown stays queued, so quick taps fire at the fire rate.
+    // Firing on the frame nearest nextAt keeps a held key at exactly fireRateMs.
+    if ((s.queued || s.key.isDown) && time + delta / 2 >= s.nextAt) {
+      s.queued = false;
+      if (this.bullets.countActive() < cfg.maxBullets) {
+        this.fireBullet();
+        s.nextAt = time + cfg.fireRateMs;
+      }
+    }
+    // Remove bullets that left the arena (also any spawned past a wall). The body is
+    // already stepped this frame, so they go before being drawn outside it.
+    const b = this.physics.world.bounds;
+    this.bullets.getChildren().slice().forEach(bullet => {
+      if (!b.contains(bullet.body.center.x, bullet.body.center.y)) bullet.destroy();
+    });
+  }
+
+  // Held movement keys as a normalised 8-way vector, zero when idle.
+  getMoveInput() {
+    const c = this.cursors, k = this.keys;
+    return new Phaser.Math.Vector2(
+      Number(c.right.isDown || k.D.isDown) - Number(c.left.isDown || k.A.isDown),
+      Number(c.down.isDown || k.S.isDown) - Number(c.up.isDown || k.W.isDown)).normalize();
+  }
+
+  fireBullet() {
+    const cfg = COIN_DASH.shooting, dir = this.getMoveInput();
+    if (dir.lengthSq() === 0) dir.copy(this.dash.dir);
+    const x = this.player.x + dir.x * cfg.spawnOffset, y = this.player.y + dir.y * cfg.spawnOffset;
+    const bullet = this.add.circle(x, y, cfg.bulletRadius, cfg.bulletColor);
+    this.bullets.add(bullet);
+    bullet.body.setCircle(cfg.bulletRadius);
+    bullet.body.setVelocity(dir.x * cfg.bulletSpeed, dir.y * cfg.bulletSpeed);
+    // Short muzzle flash at the spawn point.
+    const flash = this.add.circle(x, y, cfg.bulletRadius * 2, 0xffffff, 0.8);
+    this.tweens.add({ targets: flash, scale: 1.8, alpha: 0, duration: cfg.flashMs,
+      onComplete: () => flash.destroy() });
+  }
+
+  onBulletHit(bullet, enemy) {
+    if (this.finished || !bullet.active || !enemy.active) return;
+    bullet.destroy();
+    this.destroyEnemy(enemy, 'shot');
   }
 
   placeCoin() {
