@@ -265,4 +265,16 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| CONTACT-KILLS | Restore contact-only sword dash kills | Eldad coordinator | implementing | eldad/restore-contact-kills; features/combat.js, tests/combat.test.cjs, index.html, README.md, docs/feature-contract.md | User rejected the unsolicited ranged hit logic. Remove attack-start/per-frame proximity kills and facing arc. Original physics overlap during active dash triggers kills; preserve only requested cooldown reset/miss delay plus existing animation and controls. |
+| CONTACT-KILLS | Restore contact-only sword dash kills | Eldad coordinator | done | eldad/restore-contact-kills; features/combat.js, tests/combat.test.cjs, index.html, README.md, docs/feature-contract.md | User rejected the unsolicited ranged hit logic. Remove attack-start/per-frame proximity kills and facing arc. Original physics overlap during active dash triggers kills; preserve only requested cooldown reset/miss delay plus existing animation and controls. |
+
+- Scope error corrected: the cooldown work had introduced a 76px facing-area
+  scan that killed enemies before contact. Removed both attack-start and per-frame
+  scanning, plus the added facing/wall logic. Sword kills again come only from
+  the original Arcade player/enemy overlap callback during the active dash.
+- **160 tests pass**. New regressions cover nearby enemies surviving without
+  contact, original any-side contact kills during the dash, no kills after expiry,
+  and immediate per-player reload after successful contact. Independent review
+  compared against `c1bf201^` and confirmed hitbox sizes and overlap wiring match.
+- Browser smoke check: normal Space lunge, miss recovery and pause work without
+  console warnings/errors. The restored afterimage animation and disabled Shift
+  remain intact. Versioned combat asset prevents loading the old proximity logic.
