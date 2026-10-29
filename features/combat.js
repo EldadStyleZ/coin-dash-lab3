@@ -22,6 +22,17 @@
       this.lastTrail = new Map();
       this.reducedMotion = Boolean(root.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
       this.listeners = [];
+      this.swings = new Map();
+      if (scene.events?.on) {
+        const onDash = ({ runnerId = 'p1' } = {}) => {
+          if (!this.active()) return;
+          const end = this.runner(runnerId)?.abilities?.dashEndsAt;
+          if (!Number.isFinite(end) || end <= this.now() || this.swings.get(runnerId)?.end === end) return;
+          this.swings.set(runnerId, { end, kills: 0 });
+        };
+        scene.events.on('player-dash', onDash);
+        this.listeners.push(() => scene.events.off('player-dash', onDash));
+      }
       this.bullets = scene.physics.add.group();
       this.colliders = [scene.physics.add.overlap(this.bullets, scene.drones, (bullet, enemy) => {
         if (!this.active() || !this.shots.has(bullet) || bullet.active === false) return;
@@ -131,11 +142,21 @@
     }
     contact(enemy, runner) {
       if (!this.active() || !runner || !this.runner(runner.id) || this.now() >= (runner.abilities?.dashEndsAt || 0)) return false;
-      return this.kill(enemy, runner.id, 'enemy');
+      const killed = this.kill(enemy, runner.id, 'enemy');
+      const swing = this.swings.get(runner.id);
+      if (killed && swing && swing.end === runner.abilities.dashEndsAt) swing.kills++;
+      return killed;
     }
     update(time, _delta) {
       if (!this.active() || !Number.isFinite(time) || time < this.time || time < 0) return;
       this.time = time;
+      for (const [id, swing] of this.swings) {
+        if (!this.runner(id)) { this.swings.delete(id); continue; }
+        if (time >= swing.end) {
+          this.swings.delete(id);
+          if (swing.kills === 0) this.scene.audio?.play?.('whiff');
+        }
+      }
       this.updateEffects(time);
       if (formTarget(root.document?.activeElement)) { this.held.clear(); this.queued.clear(); }
       for (const [bullet, shot] of this.shots) {
@@ -161,6 +182,7 @@
     finish() {
       if (this.finished) return;
       this.finished = true;
+      this.swings.clear();
       this.held.clear();
       this.queued.clear();
       this.respawns = [];

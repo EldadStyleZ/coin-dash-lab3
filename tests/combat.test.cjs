@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const { EventEmitter } = require('node:events');
 const source = fs.readFileSync(path.join(__dirname, '../features/combat.js'), 'utf8');
 function setup() {
   const document = { activeElement: null };
@@ -11,7 +12,7 @@ function setup() {
   const handlers = new Map(), awards = [], sounds = [], spawned = [], colliders = [], objects = [];
   const keyboard = { on(name, fn) { handlers.set(name, fn); }, off(name, fn) { if (handlers.get(name) === fn) handlers.delete(name); } };
   const enemies = [];
-  const scene = { runTime: 0, config: { maxDrones: 20 }, input: { keyboard },
+  const scene = { events: new EventEmitter(), runTime: 0, config: { maxDrones: 20 }, input: { keyboard },
     drones: { getChildren: () => enemies, getLength: () => enemies.length },
     arena: { obstacles: {} }, isSpawnClear: () => true,
     awardPoints(...args) { awards.push(args); }, audio: { play(action) { sounds.push(action); } },
@@ -184,4 +185,43 @@ test('samurai trail and kill effects freeze on pause and clean up on destroy', (
   assert.equal(h.combat.effects.length, 0);
   assert.ok(h.colliders.every(c => c.world === null));
   assert.equal(h.combat.bullets.destroyed, true);
+});
+
+
+test('missed dash whiffs once after active-time expiry, pauses freeze it, duplicate events do not reset kills', () => {
+  const h = setup();
+  h.runners[0].abilities.dashEndsAt = 180;
+  h.scene.events.emit('player-dash', { runnerId: 'p1' });
+  h.combat.setPaused(true); h.tick(1000);
+  assert.equal(h.sounds.includes('whiff'), false);
+  h.combat.setPaused(false); h.tick(179);
+  assert.equal(h.sounds.includes('whiff'), false);
+  h.tick(180); h.tick(181);
+  assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
+  h.scene.runTime = 2000;
+  h.runners[0].abilities.dashEndsAt = 2180;
+  h.scene.events.emit('player-dash', { runnerId: 'p1' });
+  const enemy = h.makeEnemy(); h.enemies.push(enemy);
+  h.combat.contact(enemy, h.runners[0]);
+  h.scene.events.emit('player-dash', { runnerId: 'p1' });
+  h.tick(2180);
+  assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
+});
+
+test('shot kills do not suppress a dash whiff; gameover and destroy cancel pending swings', () => {
+  const h = setup();
+  h.runners[1].abilities.dashEndsAt = 180;
+  h.scene.events.emit('player-dash', { runnerId: 'p2' });
+  const enemy = h.makeEnemy(); h.enemies.push(enemy);
+  h.combat.kill(enemy, 'p2', 'shot');
+  h.tick(180);
+  assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
+  h.scene.runTime = 2000;
+  h.runners[0].abilities.dashEndsAt = 2180;
+  h.scene.events.emit('player-dash', { runnerId: 'p1' });
+  h.combat.finish(); h.tick(2180);
+  assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
+  h.combat.destroy();
+  assert.equal(h.scene.events.listenerCount('player-dash'), 0);
+  assert.equal(h.combat.swings.size, 0);
 });
