@@ -1,6 +1,7 @@
 /* global Phaser, COIN_DASH */
 (() => {
   const el = id => document.getElementById(id);
+  const setText = (id, value) => { const node = el(id); const text = String(value); if (node.textContent !== text) node.textContent = text; };
   const clampInteger = (value, fallback, min, max) => {
     const number = Number(value);
     return Number.isFinite(number) && String(value).trim() !== ''
@@ -27,6 +28,7 @@
       this.score = 0;
       this.level = 1;
       this.runTime = 0;
+      this.round = new window.CoinDashRound(c);
       this.finished = false;
       this.paused = false;
       this.physics.resume();
@@ -49,9 +51,13 @@
       for (let i = 0; i < c.droneCount; i++) this.spawnDrone(i);
       this.lives = window.CoinDashLives.create(this, { maxLives: startingLives, invulnerabilityMs: c.invulnerabilityMs });
       this.audio = window.CoinDashAudio.create(this);
+      this.abilities = new window.CoinDashAbilities(this);
+      this.scoring = new window.CoinDashScoring(this);
+      this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
+        onDash: () => this.abilities.dash(this.runTime) });
       this.physics.add.overlap(this.player, this.coin, () => {
         if (this.finished || this.paused) return;
-        this.score++;
+        this.score = this.scoring.collect(this.runTime).total;
         this.audio.play('coin');
         this.placeCoin();
         this.updateHud();
@@ -61,7 +67,7 @@
         const hit = this.lives.hit(this.runTime);
         if (!hit.damaged) return;
         this.audio.play('hit');
-        this.cameras.main.shake(90, 0.003);
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.cameras.main.shake(90, 0.003);
         this.events.emit('player-hit', hit);
         if (hit.dead) this.finish('Out of lives!');
         else el('game-status').textContent = `${hit.remaining} ${hit.remaining === 1 ? 'life' : 'lives'} left — temporary shield active.`;
@@ -83,6 +89,9 @@
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
         this.lives.destroy();
         this.audio.destroy();
+        this.abilities.destroy();
+        this.scoring.destroy();
+        this.touch.destroy();
       });
       el('pause-game').textContent = 'Pause';
       el('pause-game').disabled = false;
@@ -119,7 +128,7 @@
     }
     setEnemySpeed(enemy) {
       const c = this.config;
-      const levelMultiplier = Math.min(c.maxSpeedMultiplier, 1 + (this.level - 1) * c.speedStep);
+      const levelMultiplier = this.round.speedMultiplier;
       const raw = Number(enemy.getData('speedMultiplier'));
       const typeMultiplier = Number.isFinite(raw) && raw > 0 ? raw : 1;
       const velocity = enemy.body.velocity;
@@ -139,36 +148,42 @@
     }
     update(_time, delta) {
       if (this.finished || this.paused) return;
-      this.runTime += delta;
-      if (this.runTime >= this.config.roundSeconds * 1000) { this.finish('Round complete!'); return; }
-      const nextLevel = 1 + Math.floor(this.runTime / (this.config.levelSeconds * 1000));
-      if (nextLevel > this.level) {
-        const gained = nextLevel - this.level;
-        this.level = nextLevel;
+      const tick = this.round.advance(delta);
+      this.runTime = this.round.elapsed;
+      this.level = this.round.level;
+      if (tick.finished) { this.finish('Round complete!'); return; }
+      if (tick.gainedLevels > 0) {
+        const gained = tick.gainedLevels;
+        this.level = this.round.level;
         for (let i = 0; i < gained; i++) this.spawnDrone(this.drones.getLength());
         this.drones.getChildren().forEach(enemy => this.setEnemySpeed(enemy));
         window.CoinDashEnemies?.levelChanged?.(this, this.level);
         this.audio.play('level');
         el('game-status').textContent = `Level ${this.level}! The swarm is faster and growing.`;
       }
-      const dx = Number(this.cursors.right.isDown || this.keys.D.isDown) - Number(this.cursors.left.isDown || this.keys.A.isDown);
-      const dy = Number(this.cursors.down.isDown || this.keys.S.isDown) - Number(this.cursors.up.isDown || this.keys.W.isDown);
-      const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(this.config.playerSpeed);
-      this.player.body.setVelocity(direction.x, direction.y);
+      const touch = this.touch.direction();
+      const editing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
+      const dx = touch.x + (editing ? 0 : Number(this.cursors.right.isDown || this.keys.D.isDown) - Number(this.cursors.left.isDown || this.keys.A.isDown));
+      const dy = touch.y + (editing ? 0 : Number(this.cursors.down.isDown || this.keys.S.isDown) - Number(this.cursors.up.isDown || this.keys.W.isDown));
+      const velocity = this.abilities.velocity(dx, dy, this.runTime);
+      this.player.body.setVelocity(velocity.x, velocity.y);
+      this.scoring.update(this.runTime);
       this.lives.update(this.runTime);
       window.CoinDashEnemies?.update?.(this, delta);
       this.updateHud();
     }
     updateHud() {
-      el('score-value').textContent = this.score;
-      el('level-value').textContent = String(this.level).padStart(2, '0');
-      el('time-value').textContent = `${Math.max(0, Math.ceil(this.config.roundSeconds - this.runTime / 1000))}s`;
-      el('enemy-value').textContent = this.drones.getLength();
+      setText('score-value', this.score);
+      setText('level-value', String(this.level).padStart(2, '0'));
+      setText('time-value', `${this.round.secondsRemaining}s`);
+      setText('enemy-value', this.drones.getLength());
       this.levelHint.setText(`LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`);
     }
     setPaused(paused) {
       if (this.finished || this.paused === paused) return;
       this.paused = paused;
+      this.round.setPaused(paused);
+      this.touch.reset();
       this.audio.setPaused(paused);
       if (paused) { this.physics.pause(); this.player.body.setVelocity(0, 0); }
       else this.physics.resume();
@@ -179,16 +194,19 @@
     finish(reason) {
       if (this.finished) return;
       this.finished = true;
+      this.round.finish();
+      this.touch.reset();
+      this.scoring.finish(this.score, this.level);
       this.physics.pause();
       this.audio.play('gameover');
       this.audio.setPaused(true);
       this.updateHud();
       el('pause-game').disabled = true;
-      el('game-status').textContent = `${reason} ${this.score} coins collected. Reached level ${this.level}. Start a new round to play again.`;
+      el('game-status').textContent = `${reason} ${this.score} points scored. Reached level ${this.level}. Start a new round to play again.`;
       const c = this.config;
       this.add.rectangle(c.width / 2, c.height / 2, 480, 180, 0x0a1120, 0.96).setDepth(20);
       this.add.text(c.width / 2, c.height / 2,
-        `${reason}\n${this.score} coins · Level ${this.level}\nPress R to try again`,
+        `${reason}\n${this.score} points · Level ${this.level}\nPress R to try again`,
         { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 16 }).setOrigin(0.5).setDepth(21);
     }
   }
