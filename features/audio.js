@@ -105,10 +105,12 @@
       noise.buffer = noiseBuffer;
       const band = context.createBiquadFilter();
       band.type = 'bandpass';
-      band.Q.value = 1.5;
-      band.frequency.setValueAtTime(900, at);
-      band.frequency.exponentialRampToValueAtTime(7000, at + 0.12);
-      connect(noise, band, 0.5, 0.04, 0.18, 0.2);
+      const whiff = slice === 'whiff';
+      band.Q.value = whiff ? 0.8 : 1.5;
+      band.frequency.setValueAtTime(whiff ? 2500 : 900, at);
+      band.frequency.exponentialRampToValueAtTime(whiff ? 600 : 7000, at + (whiff ? 0.2 : 0.12));
+      connect(noise, band, whiff ? 0.35 : 0.5, whiff ? 0.05 : 0.04, whiff ? 0.22 : 0.18, whiff ? 0.24 : 0.2);
+      if (whiff) return;
       [3150, 4730].forEach((frequency, i) => {
         const source = context.createOscillator();
         source.frequency.setValueAtTime(frequency, at + 0.07);
@@ -165,6 +167,7 @@
       switch (action) {
         case 'shot': combatSound(false); break;
         case 'slice': combatSound(true); break;
+        case 'whiff': combatSound('whiff'); break;
         case 'coin':
           tone(1046.5, 0.08, 0, 'effect', 'sine', 0.24);
           tone(1568, 0.12, 0.065, 'effect', 'sine', 0.18);
