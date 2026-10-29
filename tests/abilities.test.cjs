@@ -109,3 +109,18 @@ test('invalid input is safe and no DOM or Phaser dependency is required', () => 
   assert.equal(bare.velocity(0, 2, 0).y, 100);
   bare.destroy();
 });
+
+test('Space shares P1 slice cooldown while Enter activates only P2', () => {
+  const { abilities, scene, keyboard, Class } = setup();
+  const second = new Class(scene, { keys: ['ENTER'], label: 'Enter', runnerId: 'p2' });
+  keyboard.emit('keydown-SPACE', {});
+  assert.equal(abilities.nextDashAt, 1800);
+  assert.equal(second.nextDashAt, 0);
+  keyboard.emit('keydown-ENTER', {});
+  assert.equal(second.nextDashAt, 1800);
+  abilities.disabled = true;
+  assert.equal(abilities.dash(2000), false);
+  abilities.destroy(); second.destroy();
+  assert.equal(keyboard.listenerCount('keydown-SPACE'), 0);
+  assert.equal(keyboard.listenerCount('keydown-ENTER'), 0);
+});
