@@ -35,5 +35,5 @@ window.COIN_DASH = {
     maxBullets: 8, spawnOffset: 18, flashMs: 90 },
   // Synthesised sound effects, played through Phaser's sound manager so its mute applies.
   // Volumes are 0-1; muteKey toggles all game sound.
-  sound: { muteKey: 'N', shotVolume: 0.18, sliceVolume: 0.5 }
+  sound: { muteKey: 'N', shotVolume: 0.18, sliceVolume: 0.5, whiffVolume: 0.35 }
 };
