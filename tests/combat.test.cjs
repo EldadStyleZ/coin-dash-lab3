@@ -295,3 +295,30 @@ test('multi-kill audio is coalesced and spoken callouts use only 2/3/5 milestone
   assert.match(h.announcements[2], /5 KILL/);
   assert.equal(h.sounds.filter(sound => sound === 'slice').length, 1);
 });
+
+
+test('eliminated owners cannot kill with in-flight bullets before or after the next update', () => {
+  const h = setup();
+  h.combat.fire('p1'); h.combat.fire('p2');
+  const [p1Bullet, p2Bullet] = [...h.combat.shots.keys()];
+  const enemy = target(h, 600, 250, 'zipper');
+  h.runners[0].out = true;
+  // The knockout sprite can remain visible/active; the runner is still out.
+  // Physics overlap can run before combat.update prunes the eliminated owner.
+  h.colliders[0].callback(p1Bullet, enemy);
+  assert.equal(enemy.active, true);
+  assert.equal(h.combat.shots.has(p1Bullet), false);
+  assert.equal(h.combat.shots.has(p2Bullet), true);
+  assert.equal(h.combat.kill(enemy, 'p1', 'shot'), false);
+  assert.equal(h.combat.nextShot.get('p1'), 250);
+  assert.equal(h.awards.length, 0);
+  assert.equal(h.combat.killChains.size, 0);
+  assert.equal(h.combat.respawns.length, 0);
+  assert.equal(h.sounds.includes('slice'), false);
+  h.runners[1].player.active = false;
+  h.tick(16);
+  assert.equal(h.combat.shots.size, 0);
+  h.colliders[0].callback(p2Bullet, enemy);
+  assert.equal(enemy.active, true);
+  assert.equal(h.awards.length, 0);
+});
