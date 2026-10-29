@@ -154,3 +154,9 @@ Both sides update their own status files after milestones and record failed chec
   the combined implementation. HILA_STATUS.md remains Hila's untouched handoff.
 - Final paired HTML report still requires Hila's derived JSON and a common report
   time window. Generated reports remain ignored; no raw logs are published.
+
+## Playtest follow-up
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| GAME-FOCUS | Fixed game viewport, gear settings dialog, Space scroll prevention | Eldad coordinator | implementing | eldad/game-focus; game.js, index.html, style.css, features/game-ui.js, tests/game-ui.test.cjs, README.md | User reproduced Space page scrolling outside focused canvas; keep native settings input usable, pause while dialog open |
