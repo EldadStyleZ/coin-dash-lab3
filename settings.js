@@ -13,5 +13,14 @@ window.COIN_DASH = {
     easy: { droneSpeed: 0.75, droneCount: 0.67, roundSeconds: 1.34 },
     normal: { droneSpeed: 1, droneCount: 1, roundSeconds: 1 },
     hard: { droneSpeed: 1.3, droneCount: 1.67, roundSeconds: 0.8 }
+  },
+  // Local 2-player mode (M toggles 1P/2P). P1 keeps colors.player; starts are [x, y].
+  multiplayer: {
+    p2Color: 0xb79cff,
+    p1Start: [320, 250],
+    p2Start: [480, 250],
+    outColor: 0x55607a,
+    outAlpha: 0.5,
+    hintSeconds: 2.5
   }
 };
