@@ -1,13 +1,14 @@
 (function (root) {
   'use strict';
-  const STRIKE_DURATION_MS = 160;
+  const STRIKE_DURATION_MS = 180;
+  const SWORD_DASH_MULTIPLIER = 2.5;
   const MISS_COOLDOWN_MS = 1000;
 
   class CoinDashAbilities {
     constructor(scene, options = {}) {
       this.scene = scene;
-      this.boundKeys = options.keys || ['SHIFT', 'SPACE'];
-      this.label = options.label || 'Space / Shift';
+      this.boundKeys = options.keys || ['SPACE'];
+      this.label = options.label || 'Space';
       this.runnerId = options.runnerId || 'p1';
       this.disabled = false;
       this.lastDirection = { x: 1, y: 0 };
@@ -73,8 +74,11 @@
       const configuredSpeed = this.scene.config && this.scene.config.playerSpeed;
       const speed = Number.isFinite(configuredSpeed) && configuredSpeed >= 0 ? configuredSpeed : 240;
       this.renderStatus(time);
-      // Attacking never moves the player or alters normal movement speed.
-      return { x: direction.x * speed, y: direction.y * speed };
+      // The lunge belongs to the sword attack; Shift has no separate dash.
+      const lunging = time < this.strikeEndsAt;
+      const movement = lunging ? this.strikeDirection : direction;
+      const multiplier = lunging ? SWORD_DASH_MULTIPLIER : 1;
+      return { x: movement.x * speed * multiplier, y: movement.y * speed * multiplier };
     }
 
     destroy() {

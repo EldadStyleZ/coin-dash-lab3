@@ -32,16 +32,16 @@ players, audio, voice and mission details. Opening settings pauses the round;
 closing it returns focus to play. Apply & new round applies changed settings.
 Space and arrow keys never scroll the play screen, including during cooldown.
 
-- WASD / arrows move; Space or Shift performs the stationary sword strike; F shoots. P or Escape pauses; R restarts.
+- WASD / arrows move; Space performs the sword dash; Shift is disabled; F shoots. P or Escape pauses; R restarts.
 - Touch D-pad and Strike appear on narrow screens or touch devices.
   Landscape phones place the controls beside the arena, with 44px minimum touch targets.
 - Choose Easy / Normal / Hard, 1–12 base creatures and 1, 3, or 5 lives, then New round. Difficulty scales creature count/speed and starting time (80/60/48 seconds).
-- Local 2P: P1 WASD, Space/Shift slice, F shoot; P2 arrows, Enter slice, L shoot.
+- Local 2P: P1 WASD, Space sword dash, F shoot; P2 arrows, Enter slice, L shoot.
   Separate scores, coin combos and lives; shared timer. M switches mode and restarts.
   A knocked-out player stays out while the other continues; highest score wins.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
-- Sword kills reset the attack cooldown immediately. A missed strike has a 1-second cooldown; no dash or movement boost.
+- Sword kills reset the attack cooldown immediately. A missed strike has a 1-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash.
 - Chain kills within 2.5 seconds for double/triple-kill feedback. A missed strike breaks the chain. Shooting kills also reset that player's shot cooldown.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
 - Collect five coins, strike three times, and reach level three to complete missions.

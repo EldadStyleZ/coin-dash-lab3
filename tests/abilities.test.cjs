@@ -13,22 +13,35 @@ function setup() {
   const ability = new window.CoinDashAbilities(scene);
   return { ability, scene, status };
 }
-test('strike has no forced motion, speed boost, or direction lock', () => {
+test('sword strike restores the 180ms lunge at 2.5x speed in its starting direction', () => {
   const { ability } = setup();
   ability.velocity(0, -1, 0);
   ability.strike(0);
   assert.equal(ability.strikeDirection.y, -1);
-  assert.equal(Math.hypot(...Object.values(ability.velocity(0, 0, 20))), 0);
+  assert.equal(ability.velocity(0, 0, 20).y, -600);
   const next = ability.velocity(1, 1, 30);
-  assert.ok(Math.abs(Math.hypot(next.x, next.y) - 240) < 1e-9);
-  assert.ok(next.x > 0 && next.y > 0);
+  assert.equal(next.x, 0);
+  assert.equal(next.y, -600);
+  assert.equal(ability.velocity(0, 0, 179).y, -600);
+  assert.equal(Math.hypot(...Object.values(ability.velocity(0, 0, 180))), 0);
+  const walking = ability.velocity(1, 1, 181);
+  assert.ok(Math.abs(Math.hypot(walking.x, walking.y) - 240) < 1e-9);
+});
+test('Shift is disabled while Space starts the sword dash', () => {
+  const { ability, scene } = setup();
+  scene.input.keyboard.emit('keydown-SHIFT', { target: { tagName: 'DIV' } });
+  assert.equal(ability.strikeId, 0);
+  assert.equal(ability.velocity(1, 0, 0).x, 240);
+  scene.input.keyboard.emit('keydown-SPACE', { target: { tagName: 'DIV' } });
+  assert.equal(ability.strikeId, 1);
+  assert.equal(ability.velocity(0, 0, 0).x, 600);
 });
 test('miss cooldown lasts exactly one active second from strike start', () => {
   const { ability, status } = setup();
   assert.equal(ability.strike(0), true);
-  assert.equal(ability.strikeEndsAt, 160);
+  assert.equal(ability.strikeEndsAt, 180);
   assert.equal(status.textContent, 'Striking!');
-  assert.equal(ability.strike(160), false);
+  assert.equal(ability.strike(180), false);
   assert.equal(ability.strike(999), false);
   assert.equal(ability.strike(1000), true);
   assert.equal(ability.strikeId, 2);
@@ -43,7 +56,7 @@ test('synchronous kill reset survives strike() returning and stale reset cannot 
   assert.equal(ability.strikeId, 2);
   assert.equal(ability.resetStrike(1, 0), false);
   assert.equal(ability.strike(1), false);
-  assert.equal(ability.resetStrike(2, 160), false);
+  assert.equal(ability.resetStrike(2, 180), false);
 });
 test('pause, death, disabled, bad timestamps and native form focus block strikes', () => {
   const { ability, scene } = setup();
@@ -57,7 +70,7 @@ test('pause, death, disabled, bad timestamps and native form focus block strikes
   scene.input.keyboard.emit('keydown-SPACE', { target: { tagName: 'DIV' } });
   assert.equal(ability.strikeId, 1);
 });
-test('destroy removes both keyboard aliases and makes the controller inert', () => {
+test('destroy removes the sword binding and makes the controller inert', () => {
   const { ability, scene } = setup();
   ability.destroy(); ability.destroy();
   assert.equal(scene.input.keyboard.listenerCount('keydown-SHIFT'), 0);

@@ -1,4 +1,4 @@
-/* Hila's combat adapted to stationary sword strikes and per-player kill chains. */
+/* Hila's sword dash and shooting with per-player kill chains. */
 (function (root) {
   'use strict';
   const POINTS = { chaser: 5, patroller: 3, zipper: 10 };
@@ -129,8 +129,10 @@
     }
     addEffect(object, time, lifetime, rise = 0) {
       object.setDepth?.(6);
-      this.effects.push({ object, start: time, end: time + lifetime, y: object.y, rise });
+      const effect = { object, start: time, end: time + lifetime, y: object.y, rise };
+      this.effects.push(effect);
       while (this.effects.length > 48) this.effects.shift().object.destroy();
+      return effect;
     }
     killFeedback(x, y, points) {
       const time = this.now();
@@ -146,6 +148,11 @@
       this.effects = this.effects.filter(effect => {
         if (!effect.object.scene) return false;
         if (time >= effect.end) { effect.object.destroy(); return false; }
+        if (effect.runner) {
+          if (!this.runner(effect.runner.id)) { effect.object.destroy(); return false; }
+          effect.object.x = effect.runner.player.x + effect.offset.x;
+          effect.y = effect.runner.player.y + effect.offset.y;
+        }
         const progress = (time - effect.start) / (effect.end - effect.start);
         effect.object.setAlpha?.(this.reducedMotion ? 1 : Math.max(0, 1 - progress));
         effect.object.y = effect.y - effect.rise * progress;
@@ -155,12 +162,14 @@
     strikeFeedback(runner, swing) {
       const direction = swing.direction;
       const angle = Math.atan2(direction.y, direction.x);
-      // A visible blade sweep on every attack, without moving or ghosting the runner.
+      // Keep the blade beside the runner throughout the sword lunge.
       const x = runner.player.x + Math.cos(angle) * 38;
       const y = runner.player.y + Math.sin(angle) * 38;
       const blade = this.scene.add.rectangle(x, y, 58, 4, runner.id === 'p2' ? 0x9bdeff : 0xffffff, 1);
       blade.rotation = angle + Math.PI / 2;
-      this.addEffect(blade, this.now(), 160);
+      const effect = this.addEffect(blade, this.now(), swing.end - this.now());
+      effect.runner = runner;
+      effect.offset = { x: Math.cos(angle) * 38, y: Math.sin(angle) * 38 };
     }
     inStrike(enemy, runner, swing) {
       if (!enemy || enemy.active === false || !enemy.body || enemy.body.enable === false) return false;
