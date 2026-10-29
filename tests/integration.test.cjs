@@ -117,7 +117,7 @@ test('actual collectCoin applies scoring, exactly +3 seconds, mission progress a
   assert.equal(s.missions.goals[0].progress, 1);
   assert.equal(s.reactions.rewards.length, 1);
   assert.equal(h.reactionCalls[0][0], 12000);
-  assert.deepEqual(JSON.parse(JSON.stringify(h.reactionCalls[0][1])), { points: 1, x: 150, y: 220, bonusSeconds: 3 });
+  assert.deepEqual(JSON.parse(JSON.stringify(h.reactionCalls[0][1])), { points: 1, x: 150, y: 220, bonusSeconds: 3, runnerId: 'p1' });
   assert.equal(h.elements.get('score-value').textContent, '1');
   assert.equal(h.elements.get('time-value').textContent, '51s');
   for (let i = 0; i < 4; i++) { h.advance(100); s.collectCoin(200 + i, 250); }

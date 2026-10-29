@@ -11,13 +11,12 @@ function setup(reducedMotion = false) {
   const window = { document, matchMedia: () => ({ matches: reducedMotion }) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../features/abilities.js'), 'utf8'), { window, document });
   vm.runInNewContext(source, { window, document });
-  const handlers = new Map(), awards = [], sounds = [], announcements = [], spawned = [], colliders = [], objects = [];
+  const handlers = new Map(), awards = [], sounds = [], killEvents = [], missEvents = [], spawned = [], colliders = [], objects = [];
   const keyboard = { on(name, fn) { handlers.set(name, fn); }, off(name, fn) { if (handlers.get(name) === fn) handlers.delete(name); } };
   const enemies = [];
   const scene = { events: new EventEmitter(), runTime: 0, config: { maxDrones: 20 }, input: { keyboard },
     drones: { getChildren: () => enemies, getLength: () => enemies.length },
     arena: { obstacles: {} }, isSpawnClear: () => true,
-    reactions: { announce(message) { announcements.push(message); } },
     awardPoints(...args) { awards.push(args); }, audio: { play(action) { sounds.push(action); } },
     spawnDrone(index, type) { spawned.push([index, type]); const enemy = makeEnemy(type, index); enemies.push(enemy); return enemy; }
   };
@@ -54,10 +53,12 @@ function setup(reducedMotion = false) {
     overlap(first, second, callback) { const c = { world: {}, callback, destroy() { this.world = null; } }; colliders.push(c); return c; },
     collider(first, second, callback) { const c = { world: {}, callback, destroy() { this.world = null; } }; colliders.push(c); return c; }
   } };
+  scene.events.on('enemy-killed', event => killEvents.push(event));
+  scene.events.on('strike-missed', event => missEvents.push(event));
   const combat = new window.CoinDashCombat(scene);
   const tick = time => { scene.runTime = time; combat.update(time, 16); };
   const key = (name, extra = {}) => handlers.get(name)?.({ repeat: false, target: { tagName: 'DIV' }, ...extra });
-  return { combat, scene, runners, enemies, makeEnemy, awards, sounds, announcements, killStatus, spawned, colliders, objects, handlers, document, tick, key };
+  return { combat, scene, runners, enemies, makeEnemy, awards, sounds, killEvents, missEvents, killStatus, spawned, colliders, objects, handlers, document, tick, key };
 }
 
 test('F and L fire for the correct runner, keep queued taps and enforce cooldown', () => {
@@ -126,7 +127,7 @@ test('physics contact during the dash kills and immediately reloads for another 
   const first = target(h);
   assert.equal(ability.strike(0), true);
   assert.equal(first.active, true);
-  assert.equal(ability.nextStrikeAt, 1000);
+  assert.equal(ability.nextStrikeAt, 1800);
   assert.equal(h.combat.contact(first, h.runners[0]), true);
   assert.equal(first.active, false);
   assert.equal(ability.nextStrikeAt, 0);
@@ -139,12 +140,13 @@ test('physics contact during the dash kills and immediately reloads for another 
   assert.equal(ability.strikeId, 2);
   assert.deepEqual(h.awards[1], [10, 'enemy-zipper', 'p1']);
   assert.match(h.killStatus.textContent, /P1: 2 kills/);
-  assert.match(h.announcements[0], /DOUBLE KILL/);
+  assert.equal(h.killEvents[1].count, 2);
+  assert.equal(h.killEvents[1].runnerId, 'p1');
   assert.equal(Math.hypot(...Object.values(ability.velocity(0, 0, 0))), 600);
   assert.equal(ability.velocity(1, 0, 0).x, 600);
 });
 
-test('miss keeps one-second cooldown; whiff and chain reset happen once at swing end', () => {
+test('miss keeps a 1.8-second cooldown; whiff and chain reset happen once at swing end', () => {
   const h = setup(), ability = h.runners[0].abilities;
   const first = target(h); ability.strike(0); h.combat.contact(first, h.runners[0]);
   assert.equal(h.combat.killChains.get('p1').count, 1);
@@ -153,10 +155,13 @@ test('miss keeps one-second cooldown; whiff and chain reset happen once at swing
   assert.equal(ability.strike(179), false);
   h.tick(180); h.tick(181);
   assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
+  assert.equal(h.missEvents.length, 1);
+  assert.equal(h.missEvents[0].runnerId, 'p1');
+  assert.equal(h.missEvents[0].time, 180);
   assert.equal(h.combat.killChains.has('p1'), false);
-  assert.equal(ability.strike(999), false);
-  h.scene.runTime = 1000;
-  assert.equal(ability.strike(1000), true);
+  assert.equal(ability.strike(1799), false);
+  h.scene.runTime = 1800;
+  assert.equal(ability.strike(1800), true);
 });
 
 test('sword lunge keeps its trail but must physically reach an enemy before a kill', () => {
@@ -167,7 +172,7 @@ test('sword lunge keeps its trail but must physically reach an enemy before a ki
   runner.player.x += velocity.x * 0.08;
   h.tick(80);
   assert.equal(enemy.active, true); // 72px away used to be an automatic kill.
-  assert.equal(ability.nextStrikeAt, 1000);
+  assert.equal(ability.nextStrikeAt, 1800);
   const firstGhost = h.combat.effects.find(effect => effect.start === 0);
   assert.equal(firstGhost.object.x, 400);
   assert.equal(firstGhost.object.y, 250);
@@ -191,7 +196,7 @@ test('pressing or updating a dash never automatically kills nearby enemies', () 
     assert.equal(enemy.active, true, `nearby target ${x},${y}`);
     assert.equal(h.awards.length, 0);
     assert.equal(h.combat.killChains.size, 0);
-    assert.equal(h.runners[0].abilities.nextStrikeAt, 1000);
+    assert.equal(h.runners[0].abilities.nextStrikeAt, 1800);
   }
 });
 
@@ -235,7 +240,7 @@ test('P2 strike reset and kill chains never unlock or reward P1; duplicate event
   assert.equal(h.combat.contact(enemy, p2), false);
   assert.deepEqual(h.awards, [[3, 'enemy-patroller', 'p2']]);
   assert.equal(p2.abilities.nextStrikeAt, 0);
-  assert.equal(p1.abilities.nextStrikeAt, 1000);
+  assert.equal(p1.abilities.nextStrikeAt, 1800);
   assert.equal(h.combat.killChains.get('p2').count, 1);
 });
 
@@ -266,8 +271,8 @@ test('shot kill immediately reloads only its shooter and never unlocks a sword s
   assert.equal(h.combat.nextShot.get('p2'), 250);
   assert.equal(h.combat.fire('p1'), true);
   assert.equal(h.combat.fire('p2'), false);
-  assert.equal(p1.abilities.nextStrikeAt, 1000);
-  assert.equal(p2.abilities.nextStrikeAt, 1000);
+  assert.equal(p1.abilities.nextStrikeAt, 1800);
+  assert.equal(p2.abilities.nextStrikeAt, 1800);
   assert.deepEqual(h.awards, [[10, 'shot-zipper', 'p1']]);
   h.tick(180);
   assert.equal(h.combat.killChains.has('p1'), false);
@@ -282,6 +287,25 @@ test('quick kills combine sword and shots without multiplying points and expire 
   assert.equal(h.awards.reduce((sum, [points]) => sum + points, 0), 10);
   h.tick(2699); assert.equal(h.combat.killChains.get('p1').count, 2);
   h.tick(2700); assert.equal(h.combat.killChains.has('p1'), false);
+});
+
+test('actual damage breaks only that player\'s kill chain; shielded contact does not', () => {
+  const h = setup();
+  for (const runner of h.runners) {
+    runner.abilities.strike(0);
+    h.combat.contact(target(h), runner);
+  }
+  h.scene.events.emit('player-hit', { runnerId: 'p1', damaged: false });
+  assert.equal(h.combat.killChains.get('p1').count, 1);
+  h.scene.events.emit('player-hit', { runnerId: 'p1', damaged: true });
+  assert.equal(h.combat.killChains.has('p1'), false);
+  assert.equal(h.combat.killChains.get('p2').count, 1);
+  h.scene.runTime = 100;
+  h.combat.contact(target(h), h.runners[0]);
+  assert.equal(h.combat.killChains.get('p1').count, 1);
+  assert.equal(h.killEvents.at(-1).count, 1);
+  h.combat.destroy();
+  assert.equal(h.scene.events.listenerCount('player-hit'), 0);
 });
 
 test('paused active time freezes misses and respawns; cap respected; finish/destroy cancel all work', () => {
@@ -364,17 +388,15 @@ test('dash afterimages respect reduced motion and independently follow both play
 });
 
 
-test('multi-kill audio is coalesced and spoken callouts use only 2/3/5 milestones', () => {
+test('multi-kill audio is coalesced and events report only actual kills', () => {
   const h = setup();
   for (let i = 0; i < 7; i++) target(h, 430 + i, 250);
   h.runners[0].abilities.strike(0);
   assert.equal(h.awards.length, 0);
   h.enemies.slice().forEach(enemy => h.combat.contact(enemy, h.runners[0]));
   assert.equal(h.awards.length, 7);
-  assert.equal(h.announcements.length, 3);
-  assert.match(h.announcements[0], /DOUBLE/);
-  assert.match(h.announcements[1], /TRIPLE/);
-  assert.match(h.announcements[2], /5 KILL/);
+  assert.deepEqual(h.killEvents.map(event => event.count), [1, 2, 3, 4, 5, 6, 7]);
+  assert.ok(h.killEvents.every(event => event.cause === 'enemy' && event.runnerId === 'p1' && event.time === 0));
   assert.equal(h.sounds.filter(sound => sound === 'slice').length, 1);
 });
 

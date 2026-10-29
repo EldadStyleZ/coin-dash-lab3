@@ -74,7 +74,7 @@ exactly three seconds, missions, audio, reactions. Special coins emit
 adds bonus points without adding time, coin counts, or combo credit.
 
 `CoinDashCombat` owns F/L shooting, sword-kills, slice effects, and active-time
-respawns. Space and P2 Enter all use `CoinDashAbilities`; each player has a sword dash with a 1-second miss cooldown and an immediate reset on a sword kill. Ordinary contact uses lives. Call near-miss `contact` before
+respawns. Space and P2 Enter all use `CoinDashAbilities`; each player has a sword dash with a 1.8-second miss cooldown and an immediate reset on a sword kill. Ordinary contact uses lives. Call near-miss `contact` before
 shield, immunity or strike early returns. Enemy normal updates precede rage.
 
 Powerups expose `speedMultiplier(time,runnerId)` and `absorbHit(time,runnerId)`;
@@ -91,3 +91,11 @@ Combat playtest update: `abilities.strike(time)` emits `player-strike` with a
 per-player strike ID. The sword lunges in its starting direction at 2.5× speed for 180ms; Shift is unbound. Combat only kills from the existing player/enemy physics overlap during an active dash; it never scans nearby enemies or applies an extra facing arc. It awards kill points once and resets only the killer's
 corresponding cooldown. Quick kills form a 2.5-second chain; a missed sword strike
 breaks the chain. Angry chase speed is half the previous final speed, capped at180.
+
+
+Feedback events: combat emits `enemy-killed` with `{runnerId,time,cause,count}`
+after a confirmed kill, and `strike-missed` with `{runnerId,time}` once an empty
+sword dash expires. `cause === 'enemy'` denotes a sword kill; `shot` is a projectile.
+Reactions uses those events plus `player-hit` to reset only the affected player's
+performance state. Coins pass `runnerId` to reactions. Missions listens for actual
+sword kills, never attack attempts. Kill geometry and dash animation are unchanged.

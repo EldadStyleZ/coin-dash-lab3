@@ -41,6 +41,13 @@
         };
         scene.events.on('player-strike', onStrike);
         this.listeners.push(() => scene.events.off('player-strike', onStrike));
+        const onHit = ({ runnerId = 'p1', damaged } = {}) => {
+          if (!this.active() || !damaged) return;
+          this.killChains.delete(runnerId);
+          this.renderKillStatus();
+        };
+        scene.events.on('player-hit', onHit);
+        this.listeners.push(() => scene.events.off('player-hit', onHit));
       }
       this.bullets = scene.physics.add.group();
       this.colliders = [scene.physics.add.overlap(this.bullets, scene.drones, (bullet, enemy) => {
@@ -123,8 +130,9 @@
         swing.kills++;
         this.runner(runnerId)?.abilities.resetStrike(swing.id, this.now());
       }
-      this.recordKill(runnerId);
+      const count = this.recordKill(runnerId);
       this.scene.awardPoints?.(points, `${cause}-${type}`, runnerId);
+      this.scene.events?.emit?.('enemy-killed', { runnerId, time: this.now(), cause, count });
       return true;
     }
     addEffect(object, time, lifetime, rise = 0) {
@@ -181,8 +189,8 @@
       const now = this.now(), previous = this.killChains.get(id);
       const count = previous && now - previous.last < 2500 ? previous.count + 1 : 1;
       this.killChains.set(id, { count, last: now });
-      if ([2, 3, 5].includes(count)) this.scene.reactions?.announce?.(`${id.toUpperCase()} ${count === 2 ? 'DOUBLE KILL!' : count === 3 ? 'TRIPLE KILL!' : count + ' KILL CHAIN!'}`);
       this.renderKillStatus();
+      return count;
     }
     renderKillStatus() {
       if (!this.killStatus) return;
@@ -202,6 +210,7 @@
           if (swing.kills === 0) {
             this.killChains.delete(id);
             this.scene.audio?.play?.('whiff');
+            this.scene.events?.emit?.('strike-missed', { runnerId: id, time });
           }
         }
       }

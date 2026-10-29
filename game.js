@@ -61,8 +61,6 @@
       this.powerups = new window.CoinDashPowerups(this);
       this.rage = new window.CoinDashRage(this);
       this.abilities = new window.CoinDashAbilities(this);
-      const onStrike = () => this.missions.strike();
-      this.events.on('player-strike', onStrike);
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
         onStrike: () => this.abilities.strike(this.runTime) });
@@ -111,7 +109,6 @@
         this.input.keyboard.off('keydown-M', onMode);
         window.removeEventListener('keydown', onArenaKey);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
-        this.events.off('player-strike', onStrike);
         this.events.off('special-coin', onSpecialCoin);
         this.combat.destroy();
         this.nearMiss.destroy();
@@ -163,7 +160,7 @@
       this.players?.record(result.points, runnerId);
       const seconds = this.config.coinBonusSeconds;
       this.round.addTime(seconds * 1000);
-      this.reactions.coin(this.runTime, { points: result.points, x, y, bonusSeconds: seconds });
+      this.reactions.coin(this.runTime, { points: result.points, x, y, bonusSeconds: seconds, runnerId });
       this.missions.coin();
       this.audio.play('coin');
       this.updateHud();
