@@ -29,11 +29,124 @@ class CoinDash extends Phaser.Scene {
       this.addScore(1, 'coin');
       this.placeCoin();
     });
-    this.physics.add.overlap(this.player, this.drones, (player, enemy) => this.onEnemyHit(enemy));
+    this.physics.add.overlap(this.player, this.drones, (player, enemy) => this.onDroneContact(enemy));
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
     this.setupDifficulty();
+    this.setupPowerups();
+  }
+
+  // Shield first; otherwise enemy-types decides (dash kill or end of round).
+  onDroneContact(enemy) {
+    if (this.isShielded()) return;
+    this.onEnemyHit(enemy);
+  }
+
+  // Power-ups: a pickup spawns every spawnEvery seconds and despawns after lifetime.
+  // Only one effect is active at a time; a new pickup replaces it with a fresh timer.
+  // Everything here is rebuilt in create(), and time events are cleared on restart.
+  setupPowerups() {
+    const p = COIN_DASH.powerups;
+    this.powerup = null;  // active effect: { kind, until }
+    this.pickup = null;   // uncollected pickup: { kind, expires, view }
+    this.shieldGlow = null;
+    this.powerupHud = '';
+    this.powerupTimer = this.time.addEvent({
+      delay: p.spawnEvery * 1000, startAt: (p.spawnEvery - p.firstSpawn) * 1000,
+      loop: true, callback: () => this.spawnPowerup()
+    });
+    this.updaters.push(() => this.updatePowerups());
+    this.hudItems.push(() => (this.powerupHud = this.powerup ? `${p.kinds[this.powerup.kind].label} `
+      + `${Math.ceil((this.powerup.until - this.time.now) / 1000)}s` : ''));
+  }
+
+  spawnPowerup(kind) {
+    if (this.finished) return;
+    const c = COIN_DASH, p = c.powerups;
+    kind = kind || Phaser.Utils.Array.GetRandom(Object.keys(p.kinds));
+    let x, y;
+    do {
+      x = Phaser.Math.Between(30, c.width - 30);
+      y = Phaser.Math.Between(74, c.height - 30);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < p.minPlayerDistance
+      || Phaser.Math.Distance.Between(x, y, this.coin.x, this.coin.y) < 40);
+    this.removePickup();
+    const k = p.kinds[kind];
+    const view = this.add.container(x, y, [
+      this.add.circle(0, 0, p.radius, k.color).setStrokeStyle(2, 0xffffff, 0.85),
+      this.add.text(0, 0, k.letter, { font: 'bold 14px monospace', color: '#ffffff' }).setOrigin(0.5)
+    ]);
+    this.pickup = { kind, expires: this.time.now + p.lifetime * 1000, view };
+  }
+
+  removePickup() {
+    if (this.pickup) this.pickup.view.destroy();
+    this.pickup = null;
+  }
+
+  updatePowerups() {
+    const p = COIN_DASH.powerups, now = this.time.now, pickup = this.pickup;
+    if (pickup) {
+      const left = pickup.expires - now;
+      if (left <= 0) this.removePickup();
+      else if (Phaser.Math.Distance.Between(pickup.view.x, pickup.view.y, this.player.x, this.player.y)
+        < p.radius + 12) {
+        this.removePickup();
+        this.activatePowerup(pickup.kind);
+      } else {
+        // Pulse gently, and blink for the last two seconds before despawning.
+        pickup.view.setScale(1 + 0.1 * Math.sin(now / 120))
+          .setAlpha(left < 2000 && Math.floor(left / 150) % 2 ? 0.3 : 1);
+      }
+    }
+    const active = this.powerup;
+    if (!active) return;
+    if (now >= active.until) return this.endPowerup();
+    if (active.kind === 'speed') this.player.body.velocity.scale(p.speedMultiplier);
+    if (active.kind === 'magnet') this.pullCoin();
+    if (active.kind === 'shield') {
+      this.shieldGlow.setPosition(this.player.x, this.player.y)
+        .setAlpha(active.until - now < 1500 && Math.floor(now / 120) % 2 ? 0.3 : 1);
+    }
+  }
+
+  activatePowerup(kind) {
+    const p = COIN_DASH.powerups;
+    this.endPowerup();
+    this.powerup = { kind, until: this.time.now + p.duration * 1000 };
+    if (kind === 'shield') {
+      this.shieldGlow = this.add.circle(this.player.x, this.player.y, 22, p.shieldGlow, 0.2)
+        .setStrokeStyle(3, p.shieldGlow, 0.9);
+    }
+  }
+
+  endPowerup() {
+    if (this.powerup && this.powerup.kind === 'magnet') this.coin.body.setVelocity(0, 0);
+    if (this.shieldGlow) this.shieldGlow.destroy();
+    this.powerup = this.shieldGlow = null;
+  }
+
+  // Round over: end the effect, clear the pickup and stop spawning.
+  stopPowerups() {
+    this.endPowerup();
+    this.removePickup();
+    if (this.powerupTimer) this.time.removeEvent(this.powerupTimer);
+    // The HUD freezes when the round ends; drop the stale countdown from it.
+    if (this.powerupHud) this.hud.setText(this.hud.text.replace(`   ${this.powerupHud}`, ''));
+  }
+
+  isShielded() {
+    return !!this.powerup && this.powerup.kind === 'shield' && this.time.now < this.powerup.until;
+  }
+
+  // Magnet: steer the coin toward the player while it is within range.
+  pullCoin() {
+    const p = COIN_DASH.powerups, coin = this.coin, player = this.player;
+    const dist = Phaser.Math.Distance.Between(coin.x, coin.y, player.x, player.y);
+    if (dist > p.magnetRange || dist < 4) return coin.body.setVelocity(0, 0);
+    this.physics.velocityFromRotation(Phaser.Math.Angle.Between(coin.x, coin.y, player.x, player.y),
+      p.magnetPull, coin.body.velocity);
   }
 
   // Shared helpers: features read tuning and change the score through these.
@@ -225,6 +338,7 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    this.stopPowerups();
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
