@@ -1,4 +1,4 @@
-/* Ports Hila's dash-kill / shooting path (667692d, 0ef0686) onto active-time components. */
+/* Hila's combat adapted to stationary sword strikes and per-player kill chains. */
 (function (root) {
   'use strict';
   const POINTS = { chaser: 5, patroller: 3, zipper: 10 };
@@ -19,19 +19,28 @@
       this.defeated = new WeakSet();
       this.respawns = [];
       this.effects = [];
-      this.lastTrail = new Map();
+      this.killChains = new Map();
+      this.lastSliceAt = -Infinity;
+      this.killStatus = root.document?.getElementById?.('kill-status') || null;
+      this.lastStrikeIds = new Map();
       this.reducedMotion = Boolean(root.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
       this.listeners = [];
       this.swings = new Map();
       if (scene.events?.on) {
-        const onDash = ({ runnerId = 'p1' } = {}) => {
+        const onStrike = ({ runnerId = 'p1', strikeId } = {}) => {
           if (!this.active()) return;
-          const end = this.runner(runnerId)?.abilities?.dashEndsAt;
-          if (!Number.isFinite(end) || end <= this.now() || this.swings.get(runnerId)?.end === end) return;
-          this.swings.set(runnerId, { end, kills: 0 });
+          const runner = this.runner(runnerId);
+          const ability = runner?.abilities;
+          if (!ability || !Number.isSafeInteger(strikeId) || strikeId <= (this.lastStrikeIds.get(runnerId) || 0)
+              || strikeId !== ability.strikeId || ability.strikeEndsAt <= this.now()) return;
+          this.lastStrikeIds.set(runnerId, strikeId);
+          const swing = { id: strikeId, end: ability.strikeEndsAt, kills: 0, direction: { ...ability.strikeDirection } };
+          this.swings.set(runnerId, swing);
+          this.strikeFeedback(runner, swing);
+          this.evaluateStrike(runner, swing);
         };
-        scene.events.on('player-dash', onDash);
-        this.listeners.push(() => scene.events.off('player-dash', onDash));
+        scene.events.on('player-strike', onStrike);
+        this.listeners.push(() => scene.events.off('player-strike', onStrike));
       }
       this.bullets = scene.physics.add.group();
       this.colliders = [scene.physics.add.overlap(this.bullets, scene.drones, (bullet, enemy) => {
@@ -41,6 +50,7 @@
       })];
       if (scene.arena?.obstacles) this.colliders.push(scene.physics.add.collider(this.bullets, scene.arena.obstacles,
         bullet => this.removeBullet(bullet)));
+      this.renderKillStatus();
       const keyboard = scene.input?.keyboard;
       if (keyboard) for (const [key, id] of [['F', 'p1'], ['L', 'p2']]) {
         const down = event => {
@@ -92,7 +102,7 @@
       this.scene.audio?.play?.('shot');
       return true;
     }
-    kill(enemy, runnerId, cause) {
+    kill(enemy, runnerId, cause, swing = null) {
       if (!this.active() || !enemy || enemy.active === false || !enemy.body || this.defeated.has(enemy)) return false;
       this.defeated.add(enemy);
       const type = enemy.getData('type');
@@ -103,7 +113,16 @@
       // Remove first: simultaneous overlap callbacks must never award twice.
       enemy.destroy();
       this.killFeedback(x, y, points);
-      this.scene.audio?.play?.('slice');
+      if (this.now() - this.lastSliceAt >= 120) {
+        this.lastSliceAt = this.now();
+        this.scene.audio?.play?.('slice');
+      }
+      if (cause === 'shot') this.nextShot.set(runnerId, this.now());
+      else if (swing && this.swings.get(runnerId) === swing) {
+        swing.kills++;
+        this.runner(runnerId)?.abilities.resetStrike(swing.id, this.now());
+      }
+      this.recordKill(runnerId);
       this.scene.awardPoints?.(points, `${cause}-${type}`, runnerId);
       return true;
     }
@@ -131,21 +150,66 @@
         effect.object.y = effect.y - effect.rise * progress;
         return true;
       });
-      if (this.reducedMotion) return;
-      for (const runner of this.runners()) {
-        if (time >= (runner.abilities?.dashEndsAt || 0) || time - (this.lastTrail.get(runner.id) ?? -Infinity) < 32) continue;
-        const player = runner.player;
-        this.addEffect(this.scene.add.rectangle(player.x, player.y, player.displayWidth || player.width || 24,
-          player.displayHeight || player.height || 24, 0xffffff, 0.35), time, 160);
-        this.lastTrail.set(runner.id, time);
+    }
+    strikeFeedback(runner, swing) {
+      const direction = swing.direction;
+      const angle = Math.atan2(direction.y, direction.x);
+      // A visible blade sweep on every attack, without moving or ghosting the runner.
+      const x = runner.player.x + Math.cos(angle) * 38;
+      const y = runner.player.y + Math.sin(angle) * 38;
+      const blade = this.scene.add.rectangle(x, y, 58, 4, runner.id === 'p2' ? 0x9bdeff : 0xffffff, 1);
+      blade.rotation = angle + Math.PI / 2;
+      this.addEffect(blade, this.now(), 160);
+    }
+    inStrike(enemy, runner, swing) {
+      if (!enemy || enemy.active === false || !enemy.body || enemy.body.enable === false) return false;
+      const origin = runner.player.body?.center || runner.player;
+      const target = enemy.body.center || enemy;
+      const dx = target.x - origin.x, dy = target.y - origin.y;
+      const distance = Math.hypot(dx, dy);
+      const halfWidth = Number.isFinite(enemy.body.halfWidth) ? enemy.body.halfWidth : (enemy.body.width || 0) / 2;
+      const halfHeight = Number.isFinite(enemy.body.halfHeight) ? enemy.body.halfHeight : (enemy.body.height || 0) / 2;
+      const radius = Math.max(0, Math.min(24, Math.hypot(halfWidth, halfHeight)));
+      if (!Number.isFinite(distance) || distance > 76 + radius) return false;
+      const facingLength = Math.hypot(swing.direction.x, swing.direction.y);
+      if (!facingLength || !Number.isFinite(facingLength)) return false;
+      const angleAllowance = Math.PI / 3 + (distance ? Math.asin(Math.min(1, radius / distance)) : 0);
+      if (distance > 0 && (dx * swing.direction.x + dy * swing.direction.y) / (distance * facingLength) < Math.cos(angleAllowance) - 1e-10) return false;
+      if (typeof this.scene.isSpawnClear === 'function') {
+        const steps = Math.max(1, Math.ceil(distance / 4));
+        for (let i = 0; i <= steps; i++) {
+          if (!this.scene.isSpawnClear(origin.x + dx * i / steps, origin.y + dy * i / steps, 0)) return false;
+        }
+      }
+      return true;
+    }
+    evaluateStrike(runner, swing) {
+      if (this.now() >= swing.end || runner.abilities.strikeId !== swing.id) return;
+      for (const enemy of this.scene.drones.getChildren().slice()) {
+        if (this.swings.get(runner.id) !== swing) return;
+        if (this.inStrike(enemy, runner, swing)) this.kill(enemy, runner.id, 'enemy', swing);
       }
     }
     contact(enemy, runner) {
-      if (!this.active() || !runner || !this.runner(runner.id) || this.now() >= (runner.abilities?.dashEndsAt || 0)) return false;
-      const killed = this.kill(enemy, runner.id, 'enemy');
+      if (!this.active() || !runner || !this.runner(runner.id)) return false;
       const swing = this.swings.get(runner.id);
-      if (killed && swing && swing.end === runner.abilities.dashEndsAt) swing.kills++;
-      return killed;
+      if (!swing || this.now() >= swing.end || runner.abilities.strikeId !== swing.id || !this.inStrike(enemy, runner, swing)) return false;
+      return this.kill(enemy, runner.id, 'enemy', swing);
+    }
+    recordKill(id) {
+      const now = this.now(), previous = this.killChains.get(id);
+      const count = previous && now - previous.last < 2500 ? previous.count + 1 : 1;
+      this.killChains.set(id, { count, last: now });
+      if ([2, 3, 5].includes(count)) this.scene.reactions?.announce?.(`${id.toUpperCase()} ${count === 2 ? 'DOUBLE KILL!' : count === 3 ? 'TRIPLE KILL!' : count + ' KILL CHAIN!'}`);
+      this.renderKillStatus();
+    }
+    renderKillStatus() {
+      if (!this.killStatus) return;
+      const text = 'Kill combo · ' + this.runners().map(runner => {
+        const count = this.killChains.get(runner.id)?.count || 0;
+        return `${runner.id.toUpperCase()}: ${count ? count + ' kill' + (count === 1 ? '' : 's') : 'ready'}`;
+      }).join(' · ');
+      if (this.killStatus.textContent !== text) this.killStatus.textContent = text;
     }
     update(time, _delta) {
       if (!this.active() || !Number.isFinite(time) || time < this.time || time < 0) return;
@@ -154,9 +218,16 @@
         if (!this.runner(id)) { this.swings.delete(id); continue; }
         if (time >= swing.end) {
           this.swings.delete(id);
-          if (swing.kills === 0) this.scene.audio?.play?.('whiff');
+          if (swing.kills === 0) {
+            this.killChains.delete(id);
+            this.scene.audio?.play?.('whiff');
+          }
+        } else {
+          this.evaluateStrike(this.runner(id), swing);
         }
       }
+      for (const [id, chain] of this.killChains) if (!this.runner(id) || time - chain.last >= 2500) this.killChains.delete(id);
+      this.renderKillStatus();
       this.updateEffects(time);
       if (formTarget(root.document?.activeElement)) { this.held.clear(); this.queued.clear(); }
       for (const [bullet, shot] of this.shots) {
@@ -183,6 +254,8 @@
       if (this.finished) return;
       this.finished = true;
       this.swings.clear();
+      this.killChains.clear();
+      if (this.killStatus) this.killStatus.textContent = '';
       this.held.clear();
       this.queued.clear();
       this.respawns = [];
