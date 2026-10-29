@@ -42,6 +42,7 @@ class CoinDash extends Phaser.Scene {
     this.setupPowerups();
     this.setupDash();
     this.setupShooting();
+    this.setupSound();
     this.setupNearMiss();
     this.setupCombo();
   }
@@ -278,6 +279,7 @@ class CoinDash extends Phaser.Scene {
     const type = enemy.getData('type'), cfg = COIN_DASH.enemyTypes;
     this.addScore(cfg[type].points, `${cause}-${type}`);
     this.showPopup(enemy.x, enemy.y, `+${cfg[type].points}`, cfg[type].color);
+    this.playSfx(this.sliceSound);
     enemy.destroy();
     // Respawn later, away from the player, so the arena never empties out.
     this.time.delayedCall(cfg.respawnMs, () => {
@@ -392,6 +394,78 @@ class CoinDash extends Phaser.Scene {
     const flash = this.add.circle(x, y, cfg.bulletRadius * 2, 0xffffff, 0.8);
     this.tweens.add({ targets: flash, scale: 1.8, alpha: 0, duration: cfg.flashMs,
       onComplete: () => flash.destroy() });
+    this.playSfx(this.shotSound);
+  }
+
+  // Sound effects are synthesised with Web Audio, so there are no files to load. They go
+  // through Phaser's sound manager, which unlocks audio on the first input and owns mute.
+  setupSound() {
+    const key = this.input.keyboard.addKey(COIN_DASH.sound.muteKey);
+    key.on('down', () => { this.sound.mute = !this.sound.mute; });
+  }
+
+  // Plays fn(context, destination, startTime); silently skipped while muted or locked.
+  playSfx(fn) {
+    const ctx = this.sound.context;
+    if (!ctx || this.sound.mute) return;
+    if (ctx.state !== 'running') { ctx.resume(); return; }
+    fn.call(this, ctx, this.sound.destination, ctx.currentTime);
+  }
+
+  // Short "pew": a square wave dropping from 880 Hz to 220 Hz.
+  shotSound(ctx, out, t) {
+    const osc = ctx.createOscillator(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, t);
+    osc.frequency.exponentialRampToValueAtTime(220, t + 0.09);
+    filter.type = 'lowpass';
+    filter.frequency.value = 2800;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(COIN_DASH.sound.shotVolume, t + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    osc.connect(filter).connect(gain).connect(out);
+    osc.start(t);
+    osc.stop(t + 0.11);
+  }
+
+  // Ninja slice: a rising noise "swish" for the blade, then a bright metallic "shing".
+  sliceSound(ctx, out, t) {
+    const v = COIN_DASH.sound.sliceVolume;
+    const noise = ctx.createBufferSource(), band = ctx.createBiquadFilter(), swish = ctx.createGain();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    band.type = 'bandpass';
+    band.Q.value = 1.5;
+    band.frequency.setValueAtTime(900, t);
+    band.frequency.exponentialRampToValueAtTime(7000, t + 0.12);
+    swish.gain.setValueAtTime(0.0001, t);
+    swish.gain.exponentialRampToValueAtTime(v, t + 0.04);
+    swish.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    noise.connect(band).connect(swish).connect(out);
+    noise.start(t);
+    noise.stop(t + 0.2);
+    // Two inharmonic partials ring like a blade just after the cut.
+    [3150, 4730].forEach((freq, i) => {
+      const osc = ctx.createOscillator(), ring = ctx.createGain(), at = t + 0.07;
+      osc.frequency.setValueAtTime(freq, at);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.94, at + 0.35);
+      ring.gain.setValueAtTime(0.0001, at);
+      ring.gain.exponentialRampToValueAtTime(v * (i ? 0.25 : 0.4), at + 0.004);
+      ring.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
+      osc.connect(ring).connect(out);
+      osc.start(at);
+      osc.stop(at + 0.36);
+    });
+  }
+
+  // Half a second of white noise, made once per audio context.
+  getNoiseBuffer(ctx) {
+    if (!ctx.coinDashNoise) {
+      const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate / 2), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      ctx.coinDashNoise = buffer;
+    }
+    return ctx.coinDashNoise;
   }
 
   onBulletHit(bullet, enemy) {
