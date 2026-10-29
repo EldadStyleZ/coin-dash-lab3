@@ -78,12 +78,19 @@ is discarded or overwritten.
 | --- | --- | --- | --- |
 | Port Hila enemy types, dash kills and shooting | Eldad enemy port agent | implementing | eldad/hila-enemies; features/enemies.js, features/combat.js, tests/enemies.test.cjs, tests/combat.test.cjs |
 | Port difficulty, near misses, speed pickup; adapt pickups to both players | Eldad extras port agent | implementing | eldad/hila-extras; features/difficulty.js, features/near-miss.js, features/powerups.js, tests/difficulty.test.cjs, tests/near-miss.test.cjs, tests/powerups.test.cjs |
-| Port 2P with per-player lives/scores; integrate all ports | Eldad coordinator | implementing | eldad/pair-core; game.js (after FINAL-QA handoff), index.html, settings.js, style.css, features/multiplayer.js, features/abilities.js, features/scoring.js, features/rage.js, tests/multiplayer.test.cjs, tests/abilities.test.cjs, tests/scoring.test.cjs, tests/integration.test.cjs (after FINAL-QA), README.md, docs/feature-contract.md |
+| Port 2P with per-player lives/scores; integrate all ports | Eldad coordinator | implementing | eldad/pair-core; game.js (after FINAL-QA handoff), index.html, settings.js, style.css, features/multiplayer.js, features/abilities.js, features/scoring.js, features/rage.js, features/audio.js, tests/audio.test.cjs, tests/multiplayer.test.cjs, tests/abilities.test.cjs, tests/scoring.test.cjs, tests/integration.test.cjs (after FINAL-QA), README.md, docs/feature-contract.md |
 
 Keep one dash, combo and power-up system. Bring Hila's three enemy behaviors,
 per-type kill points, F shooting, speed pickups, near misses, difficulty presets,
 and two-player mode into those systems. Preserve each partner's source commits
 and credit in port commits. Integrate serially and test the combined game.
+
+- Multiplayer module delegated to Eldad multiplayer agent on `eldad/hila-multiplayer`:
+  exclusive `features/multiplayer.js`, `features/lives.js`, `tests/multiplayer.test.cjs`.
+  Root retains abilities/scoring/core wiring. Per-player lives, scores and knockouts.
+- User specifically requested preserving Claude's Space samurai slicing. Latest
+  shooting source is b19a23a, including shot and ninja-slice sounds. Keep Space
+  dash/slice and its feedback, with F shots as a separate action; no feature deletion.
 
 ## Checks, failures, and fixes
 
