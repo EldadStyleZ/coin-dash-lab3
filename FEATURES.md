@@ -224,3 +224,7 @@ Both sides update their own status files after milestones and record failed chec
   the mission completes while the existing joke and all five coin rewards remain.
 - Removed repeated canvas-label writes and redundant reward animation writes.
   Latest remote board/status checked before integration: no new Hila changes.
+- Published gameplay checkpoint `6716976` to GitHub Pages. Deployment
+  `40859656624` succeeded; the public HTTPS page loaded the updated Strike/kill
+  combo UI, accepted Space and pause, and showed no console warnings/errors or
+  page overflow. Left a fresh round paused for the user to test.
