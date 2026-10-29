@@ -233,4 +233,12 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| SWORD-DASH | Restore the sword lunge; disable the separate Shift action | Eldad coordinator | implementing | eldad/restore-sword-dash; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/multiplayer.test.cjs, index.html, README.md, docs/feature-contract.md | User clarified: Space sword dash stays, Shift dash goes. Preserve instant kill reload, 1-second miss delay, slower rage and quieter feedback. |
+| SWORD-DASH | Restore the sword lunge; disable the separate Shift action | Eldad coordinator | done | eldad/restore-sword-dash; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/multiplayer.test.cjs, index.html, README.md, docs/feature-contract.md | User clarified: Space sword dash stays, Shift dash goes. Preserve instant kill reload, 1-second miss delay, slower rage and quieter feedback. |
+
+- Correction verified: **159 tests pass**. Space, P2 Enter and touch Strike restore
+  the original 180ms, 2.5× sword lunge. Shift has no attack binding. Sword visuals
+  follow the moving player; kills still reload immediately and misses wait 1 second.
+- Independent review found no issues. Browser confirms Shift leaves the player
+  stationary, Space lunges forward, miss recovery appears, and pause works; no
+  console warnings/errors. No changes to the slower angry enemy or quieter feedback.
+- This correction supersedes the earlier stationary-strike interpretation above.
