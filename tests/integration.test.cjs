@@ -125,7 +125,7 @@ test('actual collectCoin applies scoring, exactly +3 seconds, mission progress a
   assert.equal(s.round.duration, 75000); // Five coins, not five point awards.
   assert.equal(s.missions.goals[0].complete, true);
   // Mission completion must not replace a recent coin joke or add another voice.
-  assert.equal(s.reactions.captionText, 'Coin vacuum: activated!');
+  assert.equal(s.reactions.captionText, 'P1: 3 quick coins! Coin vacuum: activated!');
   assert.equal(s.reactions.rewards.length, 5);
   assert.equal(h.sounds.filter(sound => sound === 'coin').length, 5);
   assert.equal(h.sounds.filter(sound => sound === 'level').length, 1);

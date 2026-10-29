@@ -5,9 +5,9 @@ const vm = require('node:vm');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const source = fs.readFileSync(path.join(__dirname, '../features/combat.js'), 'utf8');
-function setup(reducedMotion = false) {
+function setup(reducedMotion = false, withFeedback = false) {
   const killStatus = { textContent: '' };
-  const document = { activeElement: null, getElementById: id => id === 'kill-status' ? killStatus : null };
+  const document = { addEventListener() {}, removeEventListener() {}, activeElement: null, getElementById: id => id === 'kill-status' ? killStatus : null };
   const window = { document, matchMedia: () => ({ matches: reducedMotion }) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../features/abilities.js'), 'utf8'), { window, document });
   vm.runInNewContext(source, { window, document });
@@ -55,6 +55,13 @@ function setup(reducedMotion = false) {
   } };
   scene.events.on('enemy-killed', event => killEvents.push(event));
   scene.events.on('strike-missed', event => missEvents.push(event));
+  if (withFeedback) {
+    for (const file of ['reactions', 'missions']) {
+      vm.runInNewContext(fs.readFileSync(path.join(__dirname, `../features/${file}.js`), 'utf8'), { window, document });
+    }
+    scene.reactions = new window.CoinDashReactions(scene);
+    scene.missions = new window.CoinDashMissions(scene);
+  }
   const combat = new window.CoinDashCombat(scene);
   const tick = time => { scene.runTime = time; combat.update(time, 16); };
   const key = (name, extra = {}) => handlers.get(name)?.({ repeat: false, target: { tagName: 'DIV' }, ...extra });
@@ -425,4 +432,41 @@ test('eliminated owners cannot kill with in-flight bullets before or after the n
   h.colliders[0].callback(p2Bullet, enemy);
   assert.equal(enemy.active, true);
   assert.equal(h.awards.length, 0);
+});
+
+
+test('real combat events never praise three missed swings and reset coin praise immediately', () => {
+  const h = setup(false, true), r = h.scene.reactions;
+  for (const time of [0, 100, 200]) { h.tick(time); r.coin(time, { runnerId: 'p1' }); }
+  assert.match(r.captionText, /P1: 3 quick coins/);
+  for (const time of [200, 2000, 3800]) {
+    h.tick(time); h.key('keydown-SPACE'); h.tick(time + 180);
+    assert.equal(r.captionText, '');
+    assert.equal(r.quickChain, 0);
+  }
+  assert.equal(h.missEvents.length, 3);
+  assert.equal(h.scene.missions.goals[1].progress, 0);
+  assert.equal(h.killEvents.length, 0);
+  h.tick(5600); r.coin(5600, { runnerId: 'p1' });
+  assert.equal(r.quickChain, 1);
+  assert.equal(r.captionText, '');
+});
+
+test('real kill praise uses confirmed contacts and damage restarts the count', () => {
+  const h = setup(false, true), runner = h.runners[0], r = h.scene.reactions;
+  for (let i = 0; i < 2; i++) {
+    h.key('keydown-SPACE');
+    h.combat.contact(target(h), runner);
+  }
+  assert.match(r.captionText, /P1: 2 kill chain/);
+  assert.equal(h.scene.missions.goals[1].progress, 2);
+  h.scene.events.emit('player-hit', { runnerId: 'p1', damaged: true });
+  assert.equal(r.captionText, '');
+  assert.equal(r.performance.get('p1').killCount, 0);
+  assert.equal(h.combat.killChains.has('p1'), false);
+  h.key('keydown-SPACE'); h.combat.contact(target(h), runner);
+  assert.equal(h.killEvents.at(-1).count, 1);
+  assert.equal(r.performance.get('p1').killCount, 1);
+  assert.doesNotMatch(r.captionText, /2 kill chain/);
+  assert.equal(h.scene.missions.goals[1].complete, true);
 });
