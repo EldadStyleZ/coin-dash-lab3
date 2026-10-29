@@ -3,7 +3,11 @@
   'use strict';
   const preferences = { voice: true, sarcasm: true };
   let gestureUnlocked = false;
-  const slowComments = ['Are you awake?', "The coins aren't going to collect themselves.", 'That coin has been waiting all day.'];
+  const slowComments = ['The coins are getting emotionally attached.', 'That coin has started a book club.', 'Your coin vacuum is on its lunch break.'];
+  const quickComments = ['Coin vacuum: activated!', 'Your pockets have turbo mode.', 'That coin never saw you coming.', 'Caffeinated coin collector!', 'The piggy bank is doing a happy dance.'];
+  const CHAIN_MILESTONES = new Set([2, 5, 10]);
+  const CAPTION_COOLDOWN_MS = 3500;
+  const VOICE_COOLDOWN_MS = 14000;
 
   class CoinDashReactions {
     constructor(scene) {
@@ -13,6 +17,10 @@
       this.quickChain = 0;
       this.slowNudged = false;
       this.slowIndex = 0;
+      this.quickIndex = 0;
+      this.lastNudgeAt = -Infinity;
+      this.lastCaptionAt = -Infinity;
+      this.recentCaptions = new Map();
       this.paused = false;
       this.destroyed = false;
       this.voiceEnabled = preferences.voice;
@@ -97,14 +105,14 @@
     speak(text) {
       if (!this.voiceEnabled || !gestureUnlocked || !this.voice || !this.synth
         || typeof root.SpeechSynthesisUtterance !== 'function' || this.paused
-        || this.scene.finished || this.destroyed || this.time - this.lastSpokenAt < 6000
+        || this.scene.finished || this.destroyed || this.time - this.lastSpokenAt < VOICE_COOLDOWN_MS
         || this.utterance || this.synth.speaking || this.synth.pending) return;
       const utterance = new root.SpeechSynthesisUtterance(text);
       utterance.voice = this.voice; // Never choose an online/browser default voice.
       utterance.lang = this.voice.lang;
       utterance.rate = 1.08;
       utterance.pitch = 1.12;
-      utterance.volume = 0.65;
+      utterance.volume = 0.55;
       utterance.onend = utterance.onerror = () => {
         if (this.utterance === utterance) this.utterance = null;
       };
@@ -131,6 +139,13 @@
     }
 
     showCaption(text, tone = 'celebration') {
+      if (!this.accepts(this.time) || this.time - this.lastCaptionAt < CAPTION_COOLDOWN_MS) return false;
+      for (const [message, time] of this.recentCaptions) {
+        if (this.time - time >= 20000) this.recentCaptions.delete(message);
+      }
+      if (this.recentCaptions.has(text)) return false;
+      this.lastCaptionAt = this.time;
+      this.recentCaptions.set(text, this.time);
       this.captionText = text;
       this.captionUntil = this.time + 2300;
       if (this.caption) {
@@ -139,6 +154,7 @@
         this.caption.hidden = false;
       }
       this.speak(text);
+      return true;
     }
 
     announce(text) {
@@ -147,9 +163,12 @@
     }
 
     nudge() {
-      if (!this.sarcasmEnabled || this.slowNudged) return;
+      if (!this.sarcasmEnabled || this.slowNudged || this.time - this.lastNudgeAt < 25000) return;
       this.slowNudged = true;
-      this.showCaption(slowComments[this.slowIndex++ % slowComments.length], 'playful');
+      if (this.showCaption(slowComments[this.slowIndex % slowComments.length], 'playful')) {
+        this.slowIndex++;
+        this.lastNudgeAt = this.time;
+      }
     }
 
     coin(time, { points = 1, x, y, bonusSeconds = 3 } = {}) {
@@ -157,9 +176,9 @@
       this.time = time;
       const gap = this.lastCoinTime === null ? null : time - this.lastCoinTime;
       this.quickChain = gap !== null && gap < 2000 ? this.quickChain + 1 : 1;
-      if (this.quickChain >= 3) this.showCaption('YOU SUPER!');
-      else if (this.quickChain === 2) this.showCaption('WOW!');
-      else if (gap !== null && gap >= 8000) this.nudge();
+      if (CHAIN_MILESTONES.has(this.quickChain)) {
+        if (this.showCaption(quickComments[this.quickIndex % quickComments.length])) this.quickIndex++;
+      } else if (gap !== null && gap >= 12000) this.nudge();
       this.lastCoinTime = time;
       this.slowNudged = false;
       this.addReward({ points, x, y, bonusSeconds });
@@ -192,7 +211,7 @@
         this.layer.appendChild(node);
       }
       this.rewards.push({ node, start: this.time });
-      while (this.rewards.length > 12) this.rewards.shift().node?.remove();
+      while (this.rewards.length > 6) this.rewards.shift().node?.remove();
     }
 
     render() {
@@ -203,9 +222,13 @@
       this.rewards = this.rewards.filter(reward => {
         const progress = (this.time - reward.start) / 1100;
         if (progress >= 1) { reward.node?.remove(); return false; }
-        if (reward.node) {
-          reward.node.style.opacity = this.reducedMotion ? '1' : String(1 - progress);
-          reward.node.style.transform = `translate(-50%, calc(-50% - ${this.reducedMotion ? 0 : progress * 32}px))`;
+        // Quantize to about 60 visual steps; repeated updates at the same active
+        // time (and every reduced-motion frame) need no additional style writes.
+        const step = this.reducedMotion ? 0 : Math.floor(progress * 60);
+        if (reward.node && reward.step !== step) {
+          reward.step = step;
+          reward.node.style.opacity = this.reducedMotion ? '1' : String(1 - step / 60);
+          reward.node.style.transform = `translate(-50%, calc(-50% - ${this.reducedMotion ? 0 : step / 60 * 24}px))`;
         }
         return true;
       });
@@ -216,7 +239,7 @@
       if (!this.accepts(time)) return;
       this.time = time;
       this.render();
-      if (time - (this.lastCoinTime === null ? 0 : this.lastCoinTime) >= 8000) this.nudge();
+      if (time - (this.lastCoinTime === null ? 0 : this.lastCoinTime) >= 12000) this.nudge();
     }
 
     setPaused(paused) {
@@ -235,6 +258,7 @@
       this.layer?.remove();
       this.controls?.remove();
       this.captionText = '';
+      this.recentCaptions.clear();
     }
   }
   root.CoinDashReactions = CoinDashReactions;
