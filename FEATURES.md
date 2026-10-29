@@ -168,3 +168,10 @@ Both sides update their own status files after milestones and record failed chec
   Settings arrows and volume keys remain native; Apply starts a new round.
   Desktop and 390×844 mobile layouts fit with no page overflow. No console errors.
   Follow-up ownership released after this verified push.
+
+
+## Public game hosting
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| PAGES | Public GitHub Pages game URL | Eldad coordinator | implementing | eldad/pages; .nojekyll, README.md | Publish main root, verify HTTPS and local asset paths online |
