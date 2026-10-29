@@ -37,6 +37,7 @@ class CoinDash extends Phaser.Scene {
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.setupNearMiss();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
@@ -101,9 +102,67 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\n${this.score} points\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
+  }
+
+  // Near-miss bonus: per-drone state lives on the drone, so restarts and new drones start clean.
+  setupNearMiss() {
+    this.nearMissCount = 0;
+    this.updaters.push(time => this.checkNearMisses(time));
+    this.hudItems.push(() => (this.nearMissCount ? `Close calls: ${this.nearMissCount}` : ''));
+  }
+
+  // Edge-to-edge gap between two Arcade bodies; -1 when they overlap.
+  bodyGap(a, b) {
+    const sx = Math.max(a.left - b.right, b.left - a.right);
+    const sy = Math.max(a.top - b.bottom, b.top - a.bottom);
+    return sx < 0 && sy < 0 ? -1 : Math.hypot(Math.max(0, sx), Math.max(0, sy));
+  }
+
+  // Arm when the player gets close; pay out on leaving range, unless the drone was touched.
+  // A contact that ends the round stops updaters first, so it never pays.
+  checkNearMisses(time) {
+    const n = COIN_DASH.nearMiss;
+    this.drones.getChildren().forEach(drone => {
+      if (!drone.body) return;
+      const gap = this.bodyGap(this.player.body, drone.body);
+      if (gap > n.distance) {
+        if (drone.nearMiss === 'armed') this.awardNearMiss(drone, time);
+        this.setNearMiss(drone, null);
+      } else if (gap < 0) {
+        this.setNearMiss(drone, 'touched');
+      } else if (!drone.nearMiss && time >= (drone.nearMissReadyAt || 0)) {
+        this.setNearMiss(drone, 'armed');
+      }
+    });
+  }
+
+  setNearMiss(drone, state) {
+    if ((drone.nearMiss || null) === state) return;
+    drone.nearMiss = state;
+    if (!drone.setStrokeStyle) return;
+    if (state === 'armed') drone.setStrokeStyle(2, COIN_DASH.nearMiss.outlineColor, 0.8);
+    else drone.setStrokeStyle();
+  }
+
+  awardNearMiss(drone, time) {
+    const n = COIN_DASH.nearMiss;
+    drone.nearMissReadyAt = time + n.cooldownMs;
+    this.nearMissCount++;
+    this.addScore(n.points, 'near-miss');
+    // Float up from above the player; near the top wall, drift down from below so it misses the HUD.
+    const p = this.player;
+    const dir = p.y > 110 ? -1 : 1;
+    const y = p.y + dir * 26;
+    const x = Phaser.Math.Clamp(p.x, 80, COIN_DASH.width - 80);
+    const popup = this.add.text(x, y, `Close call! +${n.points}`,
+      { font: 'bold 16px monospace', color: n.popupColor }).setOrigin(0.5);
+    this.tweens.add({
+      targets: popup, y: y + dir * n.popupRise, alpha: 0, duration: n.popupMs,
+      onComplete: () => popup.destroy()
+    });
   }
 }
 window.coinDashGame = new Phaser.Game({
