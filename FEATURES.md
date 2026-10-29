@@ -228,3 +228,9 @@ Both sides update their own status files after milestones and record failed chec
   `40859656624` succeeded; the public HTTPS page loaded the updated Strike/kill
   combo UI, accepted Space and pause, and showed no console warnings/errors or
   page overflow. Left a fresh round paused for the user to test.
+
+## Sword dash correction
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| SWORD-DASH | Restore the sword lunge; disable the separate Shift action | Eldad coordinator | implementing | eldad/restore-sword-dash; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/multiplayer.test.cjs, index.html, README.md, docs/feature-contract.md | User clarified: Space sword dash stays, Shift dash goes. Preserve instant kill reload, 1-second miss delay, slower rage and quieter feedback. |
