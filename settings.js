@@ -1,6 +1,6 @@
 // Per-round tuning; enemy behavior belongs to the partner's optional module.
 window.COIN_DASH = {
-  width: 800, height: 500, roundSeconds: 60,
+  width: 800, height: 500, roundSeconds: 60, coinBonusSeconds: 3,
   playerSpeed: 240, droneSpeed: 90, droneCount: 3,
   maxDrones: 20, maxStartingDrones: 12,
   startingLives: 3, invulnerabilityMs: 1500,

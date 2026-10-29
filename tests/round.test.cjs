@@ -30,3 +30,18 @@ test('manual finish stops clock, new instance resets, invalid config rejected', 
  assert.equal(r.elapsed, 123); assert.equal(new CoinDashRound(config).elapsed, 0);
  assert.throws(() => new CoinDashRound({ ...config, levelSeconds: 0 }), RangeError);
 });
+test('each coin adds exactly three seconds without changing elapsed time or difficulty', () => {
+ const r = new CoinDashRound(config); r.advance(12000);
+ assert.equal(r.secondsRemaining, 48);
+ assert.equal(r.addTime(3000), true); assert.equal(r.secondsRemaining, 51);
+ r.addTime(3000); assert.equal(r.secondsRemaining, 54);
+ assert.equal(r.elapsed, 12000); assert.equal(r.level, 2);
+ r.advance(48000); assert.equal(r.finished, false); assert.equal(r.secondsRemaining, 6);
+ r.advance(6000); assert.equal(r.finished, true); assert.equal(r.secondsRemaining, 0);
+ assert.equal(r.addTime(3000), false);
+});
+test('invalid bonuses do not alter remaining time; bonus does not advance paused clock', () => {
+ const r = new CoinDashRound(config);
+ for (const value of [NaN, Infinity, -3000, 0]) assert.equal(r.addTime(value), false);
+ r.setPaused(true); r.advance(4000); assert.equal(r.elapsed, 0); assert.equal(r.secondsRemaining, 60);
+});

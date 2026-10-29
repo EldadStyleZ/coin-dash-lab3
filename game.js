@@ -51,19 +51,33 @@
       for (let i = 0; i < c.droneCount; i++) this.spawnDrone(i);
       this.lives = window.CoinDashLives.create(this, { maxLives: startingLives, invulnerabilityMs: c.invulnerabilityMs });
       this.audio = window.CoinDashAudio.create(this);
+      this.reactions = new window.CoinDashReactions(this);
+      this.missions = new window.CoinDashMissions(this);
+      this.powerups = new window.CoinDashPowerups(this);
       this.abilities = new window.CoinDashAbilities(this);
+      const originalDash = this.abilities.dash.bind(this.abilities);
+      this.abilities.dash = time => {
+        const succeeded = originalDash(time);
+        if (succeeded) this.missions.dash();
+        return succeeded;
+      };
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
         onDash: () => this.abilities.dash(this.runTime) });
       this.physics.add.overlap(this.player, this.coin, () => {
         if (this.finished || this.paused) return;
-        this.score = this.scoring.collect(this.runTime).total;
+        const collected = this.scoring.collect(this.runTime);
+        this.score = collected.total;
+        this.round.addTime(c.coinBonusSeconds * 1000);
+        this.reactions.coin(this.runTime, { points: collected.points, x: this.coin.x, y: this.coin.y, bonusSeconds: c.coinBonusSeconds });
+        this.missions.coin();
         this.audio.play('coin');
         this.placeCoin();
         this.updateHud();
       });
       this.physics.add.overlap(this.player, this.drones, () => {
         if (this.finished || this.paused) return;
+        if (this.powerups.absorbHit(this.runTime)) return;
         const hit = this.lives.hit(this.runTime);
         if (!hit.damaged) return;
         this.audio.play('hit');
@@ -94,6 +108,9 @@
         this.abilities.destroy();
         this.scoring.destroy();
         this.touch.destroy();
+        this.reactions.destroy();
+        this.missions.destroy();
+        this.powerups.destroy();
       });
       el('pause-game').textContent = 'Pause';
       el('pause-game').disabled = false;
@@ -170,6 +187,9 @@
       const velocity = this.abilities.velocity(dx, dy, this.runTime);
       this.player.body.setVelocity(velocity.x, velocity.y);
       this.scoring.update(this.runTime);
+      this.reactions.update(this.runTime);
+      this.missions.update(this.runTime);
+      this.powerups.update(this.runTime, delta);
       this.lives.update(this.runTime);
       window.CoinDashEnemies?.update?.(this, delta);
       this.updateHud();
@@ -187,6 +207,7 @@
       this.round.setPaused(paused);
       this.touch.reset();
       this.audio.setPaused(paused);
+      this.reactions.setPaused(paused);
       if (paused) { this.physics.pause(); this.player.body.setVelocity(0, 0); }
       else this.physics.resume();
       el('pause-game').textContent = paused ? 'Resume' : 'Pause';
@@ -202,9 +223,10 @@
       this.physics.pause();
       this.audio.play('gameover');
       this.audio.setPaused(true);
+      this.reactions.setPaused(true);
       this.updateHud();
       el('pause-game').disabled = true;
-      el('game-status').textContent = `${reason} ${this.score} points scored. Reached level ${this.level}. Start a new round to play again.`;
+      el('game-status').textContent = `${reason} ${this.score} ${this.score === 1 ? 'point' : 'points'} scored. Reached level ${this.level}. Start a new round to play again.`;
       const c = this.config;
       this.add.rectangle(c.width / 2, c.height / 2, 480, 180, 0x0a1120, 0.96).setDepth(20);
       this.add.text(c.width / 2, c.height / 2,

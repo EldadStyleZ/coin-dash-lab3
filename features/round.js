@@ -28,6 +28,11 @@
       }
       return { gainedLevels: this.level - previousLevel, finished: this.finished };
     }
+    addTime(milliseconds) {
+      if (this.finished || !Number.isFinite(milliseconds) || milliseconds <= 0) return false;
+      this.duration = Math.min(Number.MAX_SAFE_INTEGER, this.duration + milliseconds);
+      return true;
+    }
     setPaused(paused) { if (!this.finished) this.paused = Boolean(paused); }
     finish() { this.finished = true; }
   }
