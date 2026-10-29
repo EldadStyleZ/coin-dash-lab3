@@ -37,6 +37,10 @@ released after integration is checked; this does not reserve shared files foreve
 
 ## Checks, failures, and fixes
 
+- Independent review caught keyboard shortcuts being ignored after New round/Pause
+  left a button focused. Fixed both handlers to return focus to the arena; browser
+  regression check pending. This was an integration issue, not a merge conflict.
+
 - Second batch: dash 7 tests, scoring 10 tests, touch 7 tests passed before integration.
 - Round-model test initially failed because it compared a floating-point multiplier
   with exact equality (1.1400000000000001 versus 1.14). Fixed the assertion to use

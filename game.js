@@ -218,6 +218,6 @@
     scene: CoinDash
   });
   const scene = () => window.coinDashGame.scene.getScene('CoinDash');
-  el('round-settings').addEventListener('submit', event => { event.preventDefault(); scene().restartRound(); });
-  el('pause-game').addEventListener('click', () => { const active = scene(); active.setPaused(!active.paused); });
+  el('round-settings').addEventListener('submit', event => { event.preventDefault(); scene().restartRound(); el('game').focus({ preventScroll: true }); });
+  el('pause-game').addEventListener('click', () => { const active = scene(); active.setPaused(!active.paused); el('game').focus({ preventScroll: true }); });
 })();
