@@ -56,5 +56,15 @@ window.COIN_DASH = {
     popupMs: 700,
     popupRise: 36,
     colors: { popup: '#ffd166', popupStroke: '#101c31' }
+  },
+  // Close-call bonus: get within `distance` px (edge to edge) of a drone, then leave untouched.
+  nearMiss: {
+    distance: 18,
+    points: 2,
+    cooldownMs: 1500, // per drone, so hovering beside one can't farm points
+    popupColor: '#b8f35f',
+    popupMs: 700,
+    popupRise: 30,
+    outlineColor: 0xffffff // drone outline while a near miss is armed
   }
 };
