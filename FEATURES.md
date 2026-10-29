@@ -159,4 +159,12 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| GAME-FOCUS | Fixed game viewport, gear settings dialog, Space scroll prevention | Eldad coordinator | implementing | eldad/game-focus; game.js, index.html, style.css, features/game-ui.js, tests/game-ui.test.cjs, README.md | User reproduced Space page scrolling outside focused canvas; keep native settings input usable, pause while dialog open |
+| GAME-FOCUS | Fixed game viewport, gear settings dialog, Space scroll prevention | Eldad coordinator | done | eldad/game-focus; game.js, index.html, style.css, features/game-ui.js, tests/game-ui.test.cjs, README.md | User reproduced Space page scrolling outside focused canvas; keep native settings input usable, pause while dialog open |
+
+
+- GAME-FOCUS verified: **143 tests pass**. Browser confirms body-focused Space
+  activates slicing without scroll; viewport scrollTop stays 0. Gear opens a modal
+  and pauses the game; Close/Escape restores focus and the previous pause state.
+  Settings arrows and volume keys remain native; Apply starts a new round.
+  Desktop and 390×844 mobile layouts fit with no page overflow. No console errors.
+  Follow-up ownership released after this verified push.
