@@ -188,12 +188,39 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| KILL-CHAINS | Stationary sword strikes, instant kill reset, miss cooldown and kill combos | Eldad combat agent | implementing | eldad/kill-chains; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs | Remove movement boost; independent P1/P2 cooldowns, avoid wall hits and duplicate rewards |
-| SLOW-RAGE | Angry enemy at least 50% slower | Eldad rage agent | implementing | eldad/slow-rage; features/rage.js, tests/rage.test.cjs | Halve the previous final chase speed, including the cap; normal speed restoration stays intact |
-| STRIKE-UI | Update core, touch controls, missions and help to strike controls | Eldad coordinator | implementing | eldad/strike-ui; game.js, index.html, style.css, features/multiplayer.js, features/controls.js, features/controls.css, features/missions.js, tests/controls.test.cjs, tests/missions.test.cjs, tests/multiplayer.test.cjs, tests/integration.test.cjs, README.md, docs/feature-contract.md | Preserve coin bonus and focused settings UI; publish combined result to Pages |
+| KILL-CHAINS | Stationary sword strikes, instant kill reset, miss cooldown and kill combos | Eldad combat agent | done | eldad/kill-chains; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs | Remove movement boost; independent P1/P2 cooldowns, avoid wall hits and duplicate rewards |
+| SLOW-RAGE | Angry enemy at least 50% slower | Eldad rage agent | done | eldad/slow-rage; features/rage.js, tests/rage.test.cjs | Halve the previous final chase speed, including the cap; normal speed restoration stays intact |
+| STRIKE-UI | Update core, touch controls, missions and help to strike controls | Eldad coordinator | done | eldad/strike-ui; game.js, index.html, style.css, features/multiplayer.js, features/controls.js, features/controls.css, features/missions.js, tests/controls.test.cjs, tests/missions.test.cjs, tests/multiplayer.test.cjs, tests/integration.test.cjs, README.md, docs/feature-contract.md | Preserve coin bonus and focused settings UI; publish combined result to Pages |
 
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| FUN-FEEDBACK | Funnier, less frequent captions and sounds | Eldad feedback agent | implementing | eldad/fun-feedback; features/reactions.js, features/reactions.css, features/audio.js, tests/reactions.test.cjs, tests/audio.test.cjs | Throttle speech/callouts, preserve reward floats and mute/cleanup; playful offline sounds |
-| RESPONSIVE-POLISH | Responsive desktop/mobile/landscape and render overhead | Eldad coordinator | implementing | eldad/strike-ui; style.css, index.html, game.js, README.md | Browser dimensions, visible controls, bounded HUD writes; no unmeasured FPS claim |
+| FUN-FEEDBACK | Funnier, less frequent captions and sounds | Eldad feedback agent | done | eldad/fun-feedback; features/reactions.js, features/reactions.css, features/audio.js, tests/reactions.test.cjs, tests/audio.test.cjs | Throttle speech/callouts, preserve reward floats and mute/cleanup; playful offline sounds |
+| RESPONSIVE-POLISH | Responsive desktop/mobile/landscape and render overhead | Eldad coordinator | done | eldad/strike-ui; style.css, index.html, game.js, README.md | Browser dimensions, visible controls, bounded HUD writes; no unmeasured FPS claim |
+
+## Combat and responsive feedback verification
+
+- **157 tests pass** on the combined game; syntax checks pass for all 20 authored
+  JavaScript files. Reviewed combat with a separate agent. Kill resets are per
+  player, misses recover after 1 second, rapid kills chain, and sword strikes do
+  not boost movement. Angry chase speed is exactly half the previous final speed,
+  including the cap. These requests supersede the historical dash entries above.
+- Review caught in-flight shots from knocked-out players killing without score;
+  removed those projectiles and guarded callbacks, with a regression test. It
+  also caught 42px landscape touch targets; all gameplay targets are now at least 44px.
+- Browser checks passed at desktop, 390×844 portrait, 844×390 landscape and
+  320×568. Arena, touch controls and settings fit without page scroll. Found and
+  fixed canvas clipping after HUD/layout changes with a lifecycle-cleaned resize
+  observer. Space triggers the sword; pause/restart/settings remain functional.
+  No browser console warnings/errors observed.
+- Coin jokes occur at quick-chain milestones, with a global 3.5-second caption
+  interval, 14-second voice interval and 20-second repeat suppression. Slow nudges
+  start after 12 seconds and wait at least 25 seconds between accepted nudges.
+  All coins retain reward feedback, capped at six visible floats. Synthesized
+  effect voices are capped at eight, with softer/varied coin and combat sounds.
+  Output-device listening remains a human check; no FPS improvement was measured.
+- The old integration assertion expected mission text to immediately replace a
+  coin caption. It failed under the requested spam reduction; updated it to verify
+  the mission completes while the existing joke and all five coin rewards remain.
+- Removed repeated canvas-label writes and redundant reward animation writes.
+  Latest remote board/status checked before integration: no new Hila changes.
