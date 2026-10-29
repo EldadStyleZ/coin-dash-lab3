@@ -5,6 +5,9 @@
   let noiseBuffer = null;
   const preferences = { music: true, sound: true, volume: 0.28 };
   const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46];
+  const EFFECT_LIMIT = 8;
+  const effectCosts = { shot: 1, slice: 3, whiff: 2, coin: 2, hit: 2, level: 4, angry: 3, gameover: 4 };
+  const cooldowns = { shot: 100, slice: 125, whiff: 250, coin: 100, hit: 250, level: 1000, angry: 2000 };
 
   function create(scene) {
     const doc = root.document;
@@ -20,6 +23,9 @@
     let destroyed = false;
     let unlocking = false;
     let status = null;
+    let coinNote = 0;
+    let priorityUntil = -Infinity;
+    const lastPlayedAt = new Map();
 
     function listen(element, event, callback, options) {
       element.addEventListener(event, callback, options);
@@ -109,13 +115,21 @@
       band.Q.value = whiff ? 0.8 : 1.5;
       band.frequency.setValueAtTime(whiff ? 2500 : 900, at);
       band.frequency.exponentialRampToValueAtTime(whiff ? 600 : 7000, at + (whiff ? 0.2 : 0.12));
-      connect(noise, band, whiff ? 0.35 : 0.5, whiff ? 0.05 : 0.04, whiff ? 0.22 : 0.18, whiff ? 0.24 : 0.2);
-      if (whiff) return;
+      connect(noise, band, whiff ? 0.2 : 0.36, whiff ? 0.05 : 0.04, whiff ? 0.22 : 0.18, whiff ? 0.24 : 0.2);
+      if (whiff) {
+        const boing = context.createOscillator();
+        boing.type = 'triangle';
+        boing.frequency.setValueAtTime(180, at + 0.04);
+        boing.frequency.exponentialRampToValueAtTime(85, at + 0.12);
+        boing.frequency.exponentialRampToValueAtTime(130, at + 0.2);
+        connect(boing, null, 0.045, 0.008, 0.18, 0.2, at + 0.04);
+        return;
+      }
       [3150, 4730].forEach((frequency, i) => {
         const source = context.createOscillator();
         source.frequency.setValueAtTime(frequency, at + 0.07);
         source.frequency.exponentialRampToValueAtTime(frequency * 0.94, at + 0.42);
-        connect(source, null, i ? 0.125 : 0.2, 0.004, 0.35, 0.36, at + 0.07);
+        connect(source, null, i ? 0.11 : 0.16, 0.004, 0.35, 0.36, at + 0.07);
       });
     }
 
@@ -157,20 +171,32 @@
     }
 
     function play(action) {
-      if (destroyed || (paused && action !== 'gameover')) return;
+      if (destroyed || ended || (paused && action !== 'gameover') || !effectCosts[action]) return;
       if (action === 'gameover') {
         ended = true;
         stopMusic();
+        stopNotes('effect');
       }
       if (!preferences.sound || !context || context.state !== 'running') return;
+      const time = Number.isFinite(scene?.runTime) ? scene.runTime : context.currentTime * 1000;
+      if (time - (lastPlayedAt.get(action) ?? -Infinity) < (cooldowns[action] || 0)) return;
+      if (action === 'level' || action === 'gameover') {
+        // Clear busy combat so these once-per-event jingles remain audible.
+        stopNotes('effect');
+        priorityUntil = time + 500;
+      } else if (time < priorityUntil) return;
+      const activeEffects = [...nodes].filter(note => note.kind === 'effect').length;
+      if (activeEffects + effectCosts[action] > EFFECT_LIMIT) return;
+      lastPlayedAt.set(action, time);
       attachMixer();
       switch (action) {
         case 'shot': combatSound(false); break;
         case 'slice': combatSound(true); break;
         case 'whiff': combatSound('whiff'); break;
         case 'coin':
-          tone(1046.5, 0.08, 0, 'effect', 'sine', 0.24);
-          tone(1568, 0.12, 0.065, 'effect', 'sine', 0.18);
+          const pitch = [0.95, 1, 1.08, 1][coinNote++ % 4];
+          tone(1046.5 * pitch, 0.07, 0, 'effect', 'sine', 0.14);
+          tone(1568 * pitch, 0.1, 0.055, 'effect', 'sine', 0.1);
           break;
         case 'hit':
           tone(164.81, 0.16, 0, 'effect', 'sawtooth', 0.13);

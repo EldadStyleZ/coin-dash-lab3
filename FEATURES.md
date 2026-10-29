@@ -190,4 +190,10 @@ Both sides update their own status files after milestones and record failed chec
 | --- | --- | --- | --- | --- | --- |
 | KILL-CHAINS | Stationary sword strikes, instant kill reset, miss cooldown and kill combos | Eldad combat agent | implementing | eldad/kill-chains; features/abilities.js, features/combat.js, tests/abilities.test.cjs, tests/combat.test.cjs | Remove movement boost; independent P1/P2 cooldowns, avoid wall hits and duplicate rewards |
 | SLOW-RAGE | Angry enemy at least 50% slower | Eldad rage agent | implementing | eldad/slow-rage; features/rage.js, tests/rage.test.cjs | Halve the previous final chase speed, including the cap; normal speed restoration stays intact |
-| STRIKE-UI | Update core, touch controls, missions and help to strike controls | Eldad coordinator | implementing | eldad/strike-ui; game.js, index.html, style.css, features/controls.js, features/controls.css, features/missions.js, tests/controls.test.cjs, tests/missions.test.cjs, tests/multiplayer.test.cjs, tests/integration.test.cjs, README.md, docs/feature-contract.md | Preserve coin bonus and focused settings UI; publish combined result to Pages |
+| STRIKE-UI | Update core, touch controls, missions and help to strike controls | Eldad coordinator | implementing | eldad/strike-ui; game.js, index.html, style.css, features/multiplayer.js, features/controls.js, features/controls.css, features/missions.js, tests/controls.test.cjs, tests/missions.test.cjs, tests/multiplayer.test.cjs, tests/integration.test.cjs, README.md, docs/feature-contract.md | Preserve coin bonus and focused settings UI; publish combined result to Pages |
+
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| FUN-FEEDBACK | Funnier, less frequent captions and sounds | Eldad feedback agent | implementing | eldad/fun-feedback; features/reactions.js, features/reactions.css, features/audio.js, tests/reactions.test.cjs, tests/audio.test.cjs | Throttle speech/callouts, preserve reward floats and mute/cleanup; playful offline sounds |
+| RESPONSIVE-POLISH | Responsive desktop/mobile/landscape and render overhead | Eldad coordinator | implementing | eldad/strike-ui; style.css, index.html, game.js, README.md | Browser dimensions, visible controls, bounded HUD writes; no unmeasured FPS claim |
