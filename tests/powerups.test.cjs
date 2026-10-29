@@ -11,7 +11,8 @@ test('first shield spawns at six seconds, expires at fourteen, then magnet at ei
   state.update(13999); assert.equal(state.pickup, pickup);
   state.update(14000); assert.equal(state.pickup, null);
   state.update(18000); assert.equal(state.pickup.type, 'magnet');
-  state.update(30000); assert.equal(state.pickup.type, 'shield');
+  state.update(30000); assert.equal(state.pickup.type, 'speed');
+  state.update(42000); assert.equal(state.pickup.type, 'shield');
 });
 
 test('collecting removes world pickup without advancing the scheduled spawn', () => {
@@ -139,7 +140,7 @@ test('collecting a special coin emits exactly once with its type and position', 
   const coinBefore = { x: scene.coin.x, y: scene.coin.y };
   powerups.update(6001, 1);
   powerups.update(6017, 16);
-  assert.deepEqual(events, [{ name: 'special-coin', payload: { type: 'shield', x, y } }]);
+  assert.deepEqual(events, [{ name: 'special-coin', payload: { type: 'shield', x, y, runnerId: 'p1' } }]);
   assert.equal(scene.score, 7, 'core owns the score');
   assert.deepEqual({ x: scene.coin.x, y: scene.coin.y }, coinBefore, 'special collection does not relocate the normal coin');
   assert.equal(powerups.state.shieldReady, true);
@@ -201,5 +202,99 @@ test('scene adapter passes its geometry query to coin attraction', () => {
   assert.equal(scene.coin.x, 480);
   assert.equal(scene.coin.body.resets, 0);
   assert.equal(queries, 1);
+  powerups.destroy();
+});
+
+function setupTwo() {
+  const fixture = setup();
+  fixture.runners = [
+    { id: 'p1', player: fixture.scene.player, lives: { remaining: 3 } },
+    { id: 'p2', player: { x: 600, y: 350, active: true, body: { enable: true }, alpha: 1 }, lives: { remaining: 3 } }
+  ];
+  fixture.scene.getRunners = () => fixture.runners;
+  fixture.events = [];
+  fixture.scene.events = { emit: (name, payload) => fixture.events.push({ name, payload }) };
+  return fixture;
+}
+
+test('speed activates at 1.6x for five active seconds and the cycle returns to shield', () => {
+  const state = new PowerupState();
+  state.update(6000); state.update(18000); state.update(30000);
+  assert.equal(state.collect(30000), 'speed');
+  assert.equal(state.speedMultiplier(30000), 1.6);
+  assert.equal(state.speedMultiplier(34999), 1.6);
+  assert.equal(state.speedMultiplier(35000), 1);
+  assert.equal(state.speedMultiplier(NaN), 1);
+  state.update(42000); assert.equal(state.pickup.type, 'shield');
+});
+
+test('P2 collects one special coin, receives its shield, and P1 cannot spend it', () => {
+  const { powerups, runners, events } = setupTwo();
+  powerups.update(6000, 16);
+  const { x, y } = powerups.pickup;
+  runners[1].player.x = x; runners[1].player.y = y;
+  powerups.update(6001, 1); powerups.update(6017, 16);
+  assert.deepEqual(events, [{ name: 'special-coin', payload: { type: 'shield', x, y, runnerId: 'p2' } }]);
+  assert.equal(powerups.absorbHit(6100, 'p1'), false);
+  assert.equal(powerups.absorbHit(6100, 'p2'), true);
+  assert.equal(powerups.absorbHit(6499, 'p2'), true);
+  assert.equal(powerups.absorbHit(6500, 'p2'), false);
+  assert.equal(powerups.state.shieldReady, false);
+  powerups.destroy();
+});
+
+test('both players hold independent shields and speed belongs only to its collector', () => {
+  const { powerups, runners } = setupTwo();
+  powerups.state.activate('shield', 1000);
+  powerups.effectFor('p2').activate('shield', 1000);
+  assert.equal(powerups.absorbHit(1100, 'p1'), true);
+  assert.equal(powerups.effectFor('p2').shieldReady, true);
+  assert.equal(powerups.absorbHit(1200, 'p2'), true);
+  powerups.update(6000, 16); powerups.update(18000, 16); powerups.update(30000, 16);
+  const { x, y } = powerups.pickup;
+  runners[1].player.x = x; runners[1].player.y = y;
+  powerups.update(30001, 1);
+  assert.equal(powerups.speedMultiplier(30001, 'p1'), 1);
+  assert.equal(powerups.speedMultiplier(30001, 'p2'), 1.6);
+  assert.equal(powerups.speedMultiplier(35001, 'p2'), 1);
+  powerups.destroy();
+});
+
+test('magnet follows its active collector and dead runners cannot collect or keep effects', () => {
+  const { powerups, scene, runners, events } = setupTwo();
+  const p2 = runners[1];
+  powerups.effectFor('p2').activate('magnet', 1000);
+  powerups.effectFor('p2').activate('speed', 1000);
+  scene.coin.x = 680; scene.coin.y = 350;
+  powerups.update(1000, 100);
+  assert.equal(scene.coin.x, 654, 'coin moves toward P2, not P1');
+  assert.equal(powerups.speedMultiplier(1001, 'p2'), 1.6);
+  p2.lives.remaining = 0;
+  powerups.update(1100, 100);
+  assert.equal(scene.coin.x, 654);
+  assert.equal(powerups.speedMultiplier(1100, 'p2'), 1);
+  powerups.update(6000, 16);
+  p2.player.x = powerups.pickup.x; p2.player.y = powerups.pickup.y;
+  powerups.update(6001, 1);
+  assert(powerups.pickup, 'dead player cannot consume the coin');
+  assert.equal(events.length, 0);
+  powerups.destroy();
+});
+
+test('safe spawn avoids both active players and status identifies their effects', () => {
+  const { powerups, runners } = setupTwo();
+  powerups.status = { textContent: '' };
+  powerups.state.activate('shield', 1000);
+  powerups.effectFor('p2').activate('speed', 1000);
+  powerups.renderStatus(1000);
+  assert.match(powerups.status.textContent, /P1: Shield/);
+  assert.match(powerups.status.textContent, /P2: Speed/);
+  const point = powerups.spawnPosition();
+  for (const { player } of runners) assert(Math.hypot(point.x - player.x, point.y - player.y) >= 85);
+  powerups.finish();
+  assert.equal(powerups.status.textContent, '');
+  assert.equal(powerups.speedMultiplier(1001, 'p2'), 1);
+  assert.equal(powerups.absorbHit(1001, 'p1'), false);
+  powerups.update(6000, 16); assert.equal(powerups.pickup, null);
   powerups.destroy();
 });
