@@ -55,26 +55,19 @@
       this.missions = new window.CoinDashMissions(this);
       this.powerups = new window.CoinDashPowerups(this);
       this.abilities = new window.CoinDashAbilities(this);
-      const originalDash = this.abilities.dash.bind(this.abilities);
-      this.abilities.dash = time => {
-        const succeeded = originalDash(time);
-        if (succeeded) this.missions.dash();
-        return succeeded;
-      };
+      const onDash = () => this.missions.dash();
+      this.events.on('player-dash', onDash);
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
         onDash: () => this.abilities.dash(this.runTime) });
       this.physics.add.overlap(this.player, this.coin, () => {
         if (this.finished || this.paused) return;
-        const collected = this.scoring.collect(this.runTime);
-        this.score = collected.total;
-        this.round.addTime(c.coinBonusSeconds * 1000);
-        this.reactions.coin(this.runTime, { points: collected.points, x: this.coin.x, y: this.coin.y, bonusSeconds: c.coinBonusSeconds });
-        this.missions.coin();
-        this.audio.play('coin');
+        this.collectCoin(this.coin.x, this.coin.y);
         this.placeCoin();
         this.updateHud();
       });
+      const onSpecialCoin = coin => this.collectCoin(coin.x, coin.y);
+      this.events.on('special-coin', onSpecialCoin);
       this.physics.add.overlap(this.player, this.drones, () => {
         if (this.finished || this.paused) return;
         if (this.powerups.absorbHit(this.runTime)) return;
@@ -103,6 +96,8 @@
         this.input.keyboard.off('keydown-P', onPause);
         this.input.keyboard.off('keydown-ESC', onPause);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
+        this.events.off('player-dash', onDash);
+        this.events.off('special-coin', onSpecialCoin);
         this.lives.destroy();
         this.audio.destroy();
         this.abilities.destroy();
@@ -115,6 +110,17 @@
       el('pause-game').textContent = 'Pause';
       el('pause-game').disabled = false;
       el('game-status').textContent = 'Round started. Collect gold and dodge the swarm!';
+      this.updateHud();
+    }
+    collectCoin(x, y) {
+      if (this.finished || this.paused) return;
+      const result = this.scoring.collect(this.runTime);
+      this.score = result.total;
+      const seconds = this.config.coinBonusSeconds;
+      this.round.addTime(seconds * 1000);
+      this.reactions.coin(this.runTime, { points: result.points, x, y, bonusSeconds: seconds });
+      this.missions.coin();
+      this.audio.play('coin');
       this.updateHud();
     }
     spawnDrone(index, type = 'drone') {

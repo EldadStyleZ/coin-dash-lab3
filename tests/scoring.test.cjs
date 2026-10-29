@@ -145,3 +145,11 @@ test('finishing rechecks storage to avoid lowering another tab\'s best', () => {
   assert.equal(scoring.best, 50);
   assert.equal(JSON.parse(records.get(scoring.storageKey)).score, 50);
 });
+test('death after base duration is not survival when coin bonus time remains', () => {
+ const { Scoring, element } = load();
+ const active = scene({ runTime: 65000, round: { secondsRemaining: 3 } });
+ new Scoring(active).finish(4, 7);
+ assert.doesNotMatch(element.textContent, /round survived/);
+ const done = new Scoring(scene({ runTime: 68000, round: { secondsRemaining: 0 } }));
+ done.finish(5, 7); assert.match(element.textContent, /round survived/);
+});
