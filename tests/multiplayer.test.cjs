@@ -127,7 +127,7 @@ test('form focus suppresses both keyboard controls while touch belongs only to P
   assert.equal(speed(multiplayer.getRunner('p2')), 0);
 });
 
-test('real abilities use Space/Shift for P1 and Enter for P2, with separate cooldowns', () => {
+test('real sword dashes use Space for P1 and Enter for P2; Shift stays disabled', () => {
   const { scene, multiplayer, keyboard, nodes } = setup();
   const p1 = multiplayer.getRunner('p1');
   const p2 = multiplayer.getRunner('p2');
@@ -135,14 +135,16 @@ test('real abilities use Space/Shift for P1 and Enter for P2, with separate cool
   scene.events.on('player-strike', event => events.push(event.runnerId));
   scene.keys.D.isDown = scene.cursors.up.isDown = true;
   multiplayer.update(0, 16);
+  keyboard.emit('keydown-SHIFT', { target: { tagName: 'CANVAS' } });
+  assert.equal(p1.abilities.strikeId, 0);
   keyboard.emit('keydown-SPACE', { target: { tagName: 'CANVAS' } });
   multiplayer.update(10, 10);
-  close(speed(p1), 240);
+  close(speed(p1), 600);
   close(speed(p2), 240);
   assert.equal(p2.abilities.nextStrikeAt, 0);
   keyboard.emit('keydown-ENTER', { target: { tagName: 'CANVAS' } });
   multiplayer.update(20, 10);
-  assert.equal(p2.player.body.velocity.y, -240);
+  assert.equal(p2.player.body.velocity.y, -600);
   assert.deepEqual(events, ['p1', 'p2']);
   assert.equal(nodes['p2-strike-status'].textContent, 'Striking!');
 });

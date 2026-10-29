@@ -38,7 +38,7 @@ function setup() {
     enemy.destroy = () => { destroy.call(enemy); const at = enemies.indexOf(enemy); if (at >= 0) enemies.splice(at, 1); };
     return enemy;
   }
-  const runner = id => ({ id, player: { active: true, x: 400, y: 250, width: 24, height: 24, body: { velocity: { x: 0, y: 0 } } }, abilities: new window.CoinDashAbilities(scene, { runnerId: id, keys: id === 'p1' ? ['SPACE', 'SHIFT'] : ['ENTER'] }) });
+  const runner = id => ({ id, player: { active: true, x: 400, y: 250, width: 24, height: 24, body: { velocity: { x: 0, y: 0 } } }, abilities: new window.CoinDashAbilities(scene, { runnerId: id, keys: id === 'p1' ? ['SPACE'] : ['ENTER'] }) });
   const runners = [runner('p1'), runner('p2')];
   scene.getRunners = () => runners.filter(item => item.player.active);
   scene.add = { circle: makeShape, rectangle: makeShape, text: makeShape };
@@ -131,8 +131,8 @@ test('real strike kills immediately, gives original points, and allows another s
   assert.deepEqual(h.awards[1], [10, 'enemy-zipper', 'p1']);
   assert.match(h.killStatus.textContent, /P1: 2 kills/);
   assert.match(h.announcements[0], /DOUBLE KILL/);
-  assert.equal(Math.hypot(...Object.values(ability.velocity(0, 0, 0))), 0);
-  assert.equal(ability.velocity(1, 0, 0).x, 240);
+  assert.equal(Math.hypot(...Object.values(ability.velocity(0, 0, 0))), 600);
+  assert.equal(ability.velocity(1, 0, 0).x, 600);
 });
 
 test('miss keeps one-second cooldown; whiff and chain reset happen once at swing end', () => {
@@ -140,14 +140,35 @@ test('miss keeps one-second cooldown; whiff and chain reset happen once at swing
   target(h); ability.strike(0);
   assert.equal(h.combat.killChains.get('p1').count, 1);
   assert.equal(ability.strike(0), true);
-  h.tick(159); assert.equal(h.sounds.includes('whiff'), false);
-  assert.equal(ability.strike(159), false);
-  h.tick(160); h.tick(161);
+  h.tick(179); assert.equal(h.sounds.includes('whiff'), false);
+  assert.equal(ability.strike(179), false);
+  h.tick(180); h.tick(181);
   assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
   assert.equal(h.combat.killChains.has('p1'), false);
   assert.equal(ability.strike(999), false);
   h.scene.runTime = 1000;
   assert.equal(ability.strike(1000), true);
+});
+
+test('sword lunge reaches a target beyond initial range and keeps its blade with the player', () => {
+  const h = setup(), runner = h.runners[0], ability = runner.abilities;
+  const enemy = target(h, 520, 250);
+  ability.strike(0);
+  assert.equal(enemy.active, true);
+  const velocity = ability.velocity(0, 0, 80);
+  runner.player.x += velocity.x * 0.08;
+  runner.player.y += velocity.y * 0.08;
+  h.tick(80);
+  assert.equal(enemy.active, false);
+  assert.equal(ability.nextStrikeAt, 80);
+  const blade = h.combat.effects.find(effect => effect.runner === runner);
+  assert.equal(blade.object.x, runner.player.x + 38);
+  assert.equal(blade.object.y, runner.player.y);
+  assert.equal(blade.end, 180);
+  assert.equal(ability.strike(80), true);
+  h.tick(180);
+  assert.equal(h.combat.swings.get('p1').id, 2);
+  assert.equal(h.sounds.includes('whiff'), false);
 });
 
 test('range, facing cone, exact boundary and wall line of sight govern sword hits', () => {
@@ -182,7 +203,7 @@ test('active window catches approaching targets; attack is not immunity to conta
   assert.equal(front.active, false);
   assert.equal(ability.nextStrikeAt, 100);
   const late = target(h, 450, 250);
-  h.tick(160);
+  h.tick(180);
   assert.equal(h.combat.contact(late, h.runners[0]), false);
 });
 
@@ -206,11 +227,11 @@ test('old strike expiry/event cannot reset or whiff a newer successful swing', (
   h.scene.runTime = 100;
   target(h); ability.strike(100);
   h.scene.events.emit('player-strike', { runnerId: 'p1', strikeId: 1 });
-  h.tick(160);
+  h.tick(180);
   assert.equal(h.combat.swings.get('p1').id, 2);
   assert.equal(h.sounds.includes('whiff'), false);
   assert.equal(ability.nextStrikeAt, 100);
-  h.tick(260);
+  h.tick(280);
   assert.equal(h.sounds.includes('whiff'), false);
   assert.equal(h.awards.length, 2);
 });
@@ -230,7 +251,7 @@ test('shot kill immediately reloads only its shooter and never unlocks a sword s
   assert.equal(p1.abilities.nextStrikeAt, 1000);
   assert.equal(p2.abilities.nextStrikeAt, 1000);
   assert.deepEqual(h.awards, [[10, 'shot-zipper', 'p1']]);
-  h.tick(160);
+  h.tick(180);
   assert.equal(h.combat.killChains.has('p1'), false);
 });
 
@@ -253,7 +274,7 @@ test('paused active time freezes misses and respawns; cap respected; finish/dest
   h.scene.paused = true; h.combat.setPaused(true); h.tick(10000);
   assert.equal(h.sounds.includes('whiff'), false);
   assert.equal(h.spawned.length, 0);
-  h.scene.paused = false; h.combat.setPaused(false); h.tick(160);
+  h.scene.paused = false; h.combat.setPaused(false); h.tick(180);
   assert.equal(h.sounds.filter(sound => sound === 'whiff').length, 1);
   const blocker = target(h, 600, 300);
   h.tick(3000); assert.equal(h.spawned.length, 0);
