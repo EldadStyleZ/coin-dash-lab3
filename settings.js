@@ -66,5 +66,14 @@ window.COIN_DASH = {
     popupMs: 700,
     popupRise: 30,
     outlineColor: 0xffffff // drone outline while a near miss is armed
+  },
+  // Local 2-player mode (M toggles 1P/2P). P1 keeps colors.player; starts are [x, y].
+  multiplayer: {
+    p2Color: 0xb79cff,
+    p1Start: [320, 250],
+    p2Start: [480, 250],
+    outColor: 0x55607a,
+    outAlpha: 0.5,
+    hintSeconds: 2.5
   }
 };
