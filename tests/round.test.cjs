@@ -6,7 +6,7 @@ test('levels advance at boundaries and difficulty increases', () => {
  const r = new CoinDashRound(config);
  assert.equal(r.advance(9999).gainedLevels, 0);
  assert.equal(r.advance(1).gainedLevels, 1);
- assert.equal(r.level, 2); assert.equal(r.speedMultiplier, 1.14);
+ assert.equal(r.level, 2); assert.ok(Math.abs(r.speedMultiplier - 1.14) < 1e-10);
  assert.equal(r.advance(20000).gainedLevels, 2); assert.equal(r.level, 4);
 });
 test('pause freezes level, countdown and elapsed active time', () => {
