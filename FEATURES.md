@@ -248,4 +248,15 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| SWORD-ANIMATION | Restore the original dash afterimage animation | Eldad coordinator | implementing | eldad/restore-sword-animation; features/combat.js, tests/combat.test.cjs, index.html, README.md | Compare pre-change combat visuals; restore the lost trailing afterimages and remove the replacement straight blade. Preserve Space lunge, disabled Shift, combos and miss cooldown. |
+| SWORD-ANIMATION | Restore the original dash afterimage animation | Eldad coordinator | done | eldad/restore-sword-animation; features/combat.js, tests/combat.test.cjs, index.html, README.md | Compare pre-change combat visuals; restore the lost trailing afterimages and remove the replacement straight blade. Preserve Space lunge, disabled Shift, combos and miss cooldown. |
+
+- Animation regression identified: `c1bf201` removed the original fading body
+  afterimages; the previous correction restored movement but left a replacement
+  straight blade. Restored the pre-change trail (white body-sized ghosts, 32ms
+  cadence, 160ms lifetime) and removed that bar. Opacity now fades from 0.35
+  without brightening on the next frame. Diagonal kill slash remains intact.
+- **160 tests pass**. Independent comparison against the pre-change implementation
+  found no issues. Browser paused mid-dash visibly shows the restored trailing
+  afterimages; no console warnings/errors. Reduced-motion, both players, pause,
+  expiry and cleanup checked. Lunge timing, Shift removal, combos/reload and
+  miss recovery are unchanged. Versioned combat script prevents stale animation.
