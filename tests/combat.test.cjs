@@ -5,10 +5,10 @@ const vm = require('node:vm');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const source = fs.readFileSync(path.join(__dirname, '../features/combat.js'), 'utf8');
-function setup() {
+function setup(reducedMotion = false) {
   const killStatus = { textContent: '' };
   const document = { activeElement: null, getElementById: id => id === 'kill-status' ? killStatus : null };
-  const window = { document, matchMedia: () => ({ matches: false }) };
+  const window = { document, matchMedia: () => ({ matches: reducedMotion }) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../features/abilities.js'), 'utf8'), { window, document });
   vm.runInNewContext(source, { window, document });
   const handlers = new Map(), awards = [], sounds = [], announcements = [], spawned = [], colliders = [], objects = [];
@@ -41,7 +41,11 @@ function setup() {
   const runner = id => ({ id, player: { active: true, x: 400, y: 250, width: 24, height: 24, body: { velocity: { x: 0, y: 0 } } }, abilities: new window.CoinDashAbilities(scene, { runnerId: id, keys: id === 'p1' ? ['SPACE'] : ['ENTER'] }) });
   const runners = [runner('p1'), runner('p2')];
   scene.getRunners = () => runners.filter(item => item.player.active);
-  scene.add = { circle: makeShape, rectangle: makeShape, text: makeShape };
+  scene.add = { circle: makeShape, text: makeShape,
+    rectangle(x, y, width, height, color, alpha = 1) {
+      return Object.assign(makeShape(x, y), { width, height, color, alpha });
+    }
+  };
   scene.physics = { add: {
     group() { return { scene, children: [], add(object) {
       this.children.push(object); object.group = this;
@@ -150,7 +154,7 @@ test('miss keeps one-second cooldown; whiff and chain reset happen once at swing
   assert.equal(ability.strike(1000), true);
 });
 
-test('sword lunge reaches a target beyond initial range and keeps its blade with the player', () => {
+test('sword lunge reaches a target beyond initial range and leaves afterimages behind', () => {
   const h = setup(), runner = h.runners[0], ability = runner.abilities;
   const enemy = target(h, 520, 250);
   ability.strike(0);
@@ -161,10 +165,11 @@ test('sword lunge reaches a target beyond initial range and keeps its blade with
   h.tick(80);
   assert.equal(enemy.active, false);
   assert.equal(ability.nextStrikeAt, 80);
-  const blade = h.combat.effects.find(effect => effect.runner === runner);
-  assert.equal(blade.object.x, runner.player.x + 38);
-  assert.equal(blade.object.y, runner.player.y);
-  assert.equal(blade.end, 180);
+  const firstGhost = h.combat.effects.find(effect => effect.start === 0);
+  assert.equal(firstGhost.object.x, 400);
+  assert.equal(firstGhost.object.y, 250);
+  assert.equal(firstGhost.end, 160);
+  assert.ok(firstGhost.object.x < runner.player.x);
   assert.equal(ability.strike(80), true);
   h.tick(180);
   assert.equal(h.combat.swings.get('p1').id, 2);
@@ -290,18 +295,59 @@ test('paused active time freezes misses and respawns; cap respected; finish/dest
   assert.ok(h.colliders.every(c => c.world === null));
 });
 
-test('missed sword renders a slash immediately without body afterimages; restart is fresh', () => {
-  const h = setup();
-  h.runners[0].abilities.strike(0);
+test('sword dash restores fading body afterimages, bounded cadence and clean restart', () => {
+  const h = setup(), runner = h.runners[0];
+  runner.abilities.strike(0);
+  const first = h.combat.effects[0];
+  assert.equal(first.object.x, runner.player.x);
+  assert.equal(first.object.width, runner.player.width);
+  assert.equal(first.object.height, runner.player.height);
+  assert.equal(first.object.color, 0xffffff);
+  assert.equal(first.object.alpha, 0.35);
+  runner.player.x += 20;
+  h.tick(16); h.tick(31);
   assert.equal(h.combat.effects.length, 1);
-  assert.ok(h.combat.effects[0].object.x > h.runners[0].player.x);
-  h.tick(32); h.tick(64);
-  assert.equal(h.combat.effects.length, 1);
+  h.tick(32); h.tick(32);
+  assert.equal(h.combat.effects.length, 2);
+  assert.equal(first.object.x, 400); // Ghost stays behind, never follows the runner.
+  assert.equal(h.combat.effects[1].object.x, 420);
+  h.tick(80);
+  assert.equal(first.object.alpha, 0.175);
+  const beforePause = h.combat.effects.length;
+  h.scene.paused = true; h.tick(100);
+  assert.equal(h.combat.effects.length, beforePause);
+  assert.equal(first.object.alpha, 0.175);
+  h.scene.paused = false;
+  h.tick(160);
+  assert.equal(first.object.active, false);
+  const lastSpawn = h.combat.lastTrail.get('p1');
+  h.tick(180); h.tick(320);
+  assert.equal(h.combat.lastTrail.get('p1'), lastSpawn);
+  assert.equal(h.combat.effects.length, 0);
   h.combat.destroy();
+  assert.equal(h.combat.lastTrail.size, 0);
   const restarted = setup();
   assert.equal(restarted.runners[0].abilities.strikeId, 0);
   assert.equal(restarted.combat.killChains.size, 0);
   assert.equal(restarted.runners[0].abilities.strike(0), true);
+  assert.equal(restarted.combat.effects.length, 1);
+});
+
+test('dash afterimages respect reduced motion and independently follow both players', () => {
+  const reduced = setup(true);
+  reduced.runners[0].abilities.strike(0); reduced.tick(32);
+  assert.equal(reduced.combat.effects.length, 0);
+  assert.equal(reduced.runners[0].abilities.velocity(0, 0, 32).x, 600);
+  const h = setup();
+  h.runners[1].player.x = 500;
+  h.runners.forEach(runner => runner.abilities.strike(0));
+  assert.deepEqual(Array.from(h.combat.effects, effect => effect.object.x), [400, 500]);
+  h.runners[0].out = true;
+  h.tick(32);
+  assert.equal(h.combat.lastTrail.get('p1'), 0);
+  assert.equal(h.combat.lastTrail.get('p2'), 32);
+  h.combat.finish();
+  assert.equal(h.combat.effects.length, 0);
 });
 
 
