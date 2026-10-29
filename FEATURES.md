@@ -1,5 +1,9 @@
 # Shared feature board
 
+**Single writer: Eldad coordinating AI.** Hila writes `HILA_STATUS.md`; Eldad reads
+and mirrors her updates here. Both AIs read both files. Do not rewrite the other
+AI's status file. This avoids simultaneous edits to this board.
+
 Both partners and all agents: read the latest remote version before work. Claim
 and push ownership BEFORE editing. Different worktrees isolate files but do not
 prevent two agents from implementing the same feature. Keep this file current.
@@ -49,6 +53,7 @@ Agree on the lab's start/end timestamps (including timezone) for both reports.
 
 ## Handoff notes
 
-Hila's AI: pull main, read this board, fill in ENEMY-TYPES ownership/status and
-coordinate any shared-file changes. Both sides update their rows after each
-meaningful milestone and record failed checks in the section above.
+Hila's AI: pull main, read this board and AGENTS.md, then put ENEMY-TYPES
+ownership/status and hook requests in HILA_STATUS.md. Do not edit FEATURES.md.
+Eldad checks your status before every integration and mirrors it here.
+Both sides update their own status files after milestones and record failed checks.
