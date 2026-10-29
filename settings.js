@@ -32,5 +32,8 @@ window.COIN_DASH = {
   // direction. bulletSpeed is px/s; bullets spawn spawnOffset px ahead of the player, at
   // most maxBullets at once. flashMs is the muzzle flash length.
   shooting: { key: 'F', fireRateMs: 250, bulletSpeed: 520, bulletRadius: 4, bulletColor: 0xb8ff3c,
-    maxBullets: 8, spawnOffset: 18, flashMs: 90 }
+    maxBullets: 8, spawnOffset: 18, flashMs: 90 },
+  // Synthesised sound effects, played through Phaser's sound manager so its mute applies.
+  // Volumes are 0-1; muteKey toggles all game sound.
+  sound: { muteKey: 'N', shotVolume: 0.18, sliceVolume: 0.5 }
 };
