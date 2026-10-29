@@ -72,6 +72,7 @@ input[type="checkbox"] { accent-color: var(--mint); width: 17px; height: 17px; v
 [hidden] { display: none !important; }
 @media (max-width: 600px) {
   main { padding: 8px; gap: 6px; }
+  #game { flex: 0 1 auto; aspect-ratio: 8 / 5; }
   h1 { font-size: 22px; }
   .toolbar-actions { gap: 5px; }
   .toolbar-actions button { padding: 6px 8px; font-size: 10px; }
