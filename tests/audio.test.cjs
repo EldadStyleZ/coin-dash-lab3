@@ -125,7 +125,8 @@ test('samurai slice and shot effects use shared context and release on pause', a
   const before = h.oscillators.length;
   audio.play('shot');
   audio.play('slice');
-  assert.equal(h.oscillators.length - before, 4); // shot + noise + two metallic partials
+  audio.play('whiff');
+  assert.equal(h.oscillators.length - before, 5); // shot + slice noise/two metallic partials + miss noise
   assert.equal(h.contexts(), 1);
   audio.setPaused(true);
   assert.ok(h.oscillators.every(node => node.disconnected));
