@@ -39,7 +39,7 @@
     const player = scene.player;
     const initialAlpha = player && Number.isFinite(player.alpha) ? player.alpha : 1;
     const status = typeof document !== 'undefined'
-      ? document.getElementById('lives-status') : null;
+      ? document.getElementById(options.statusId || 'lives-status') : null;
     let destroyed = false;
 
     function setAlpha(alpha) {
