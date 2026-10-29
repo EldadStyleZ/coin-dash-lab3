@@ -270,6 +270,7 @@ class CoinDash extends Phaser.Scene {
       else this.finish(`A ${enemy.getData('type')} caught you!`);
       return;
     }
+    this.dash.kills++;
     this.destroyEnemy(enemy, 'enemy');
   }
 
@@ -317,6 +318,7 @@ class CoinDash extends Phaser.Scene {
     d.queued = false;
     if (pressed && !d.active && time >= d.readyAt) {
       d.active = true;
+      d.kills = 0;
       d.until = time + cfg.durationMs;
       d.readyAt = d.until + cfg.cooldownMs;
       d.color = this.player.fillColor;
@@ -325,6 +327,8 @@ class CoinDash extends Phaser.Scene {
     if (d.active && time >= d.until) {
       d.active = false;
       this.player.setFillStyle(d.color);
+      // A dash that cut nothing whiffs through the air.
+      if (!d.kills) this.playSfx(this.whiffSound);
     }
     if (!d.active) return;
     this.player.body.setVelocity(d.dir.x * cfg.speed, d.dir.y * cfg.speed);
@@ -455,6 +459,22 @@ class CoinDash extends Phaser.Scene {
       osc.start(at);
       osc.stop(at + 0.36);
     });
+  }
+
+  // Missed swing: a softer noise "fwoosh" that falls in pitch and has no metallic ring.
+  whiffSound(ctx, out, t) {
+    const noise = ctx.createBufferSource(), band = ctx.createBiquadFilter(), gain = ctx.createGain();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    band.type = 'bandpass';
+    band.Q.value = 0.8;
+    band.frequency.setValueAtTime(2500, t);
+    band.frequency.exponentialRampToValueAtTime(600, t + 0.2);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(COIN_DASH.sound.whiffVolume, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    noise.connect(band).connect(gain).connect(out);
+    noise.start(t);
+    noise.stop(t + 0.24);
   }
 
   // Half a second of white noise, made once per audio context.
