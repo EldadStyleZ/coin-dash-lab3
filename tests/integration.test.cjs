@@ -176,3 +176,18 @@ test('actual finish immediately restores active rage and remains idempotent afte
   assert.equal(counts.physicsPauses, 1);
   assert.equal(counts.drawnObjects, 2);
 });
+
+
+test('actual bonus award never adds coin time or mission progress', () => {
+  const h = setup(), s = h.active;
+  const duration = s.round.duration;
+  assert.equal(s.awardPoints(5, 'slice-chaser'), 5);
+  assert.equal(s.awardPoints(2, 'near-miss'), 2);
+  assert.equal(s.score, 7);
+  assert.equal(s.round.duration, duration);
+  assert.equal(s.scoring.coins, 0);
+  assert.equal(s.missions.goals[0].progress, 0);
+  s.collectCoin(100, 100);
+  assert.equal(s.score, 8);
+  assert.equal(s.round.duration, duration + 3000);
+});

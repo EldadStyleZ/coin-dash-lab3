@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
   let context = null;
+  let noiseBuffer = null;
   const preferences = { music: true, sound: true, volume: 0.28 };
   const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46];
 
@@ -29,7 +30,7 @@
       nodes.delete(note);
       note.oscillator.onended = null;
       try { note.oscillator.disconnect(); } catch (_) { /* Already released. */ }
-      try { note.gain.disconnect(); } catch (_) { /* Already released. */ }
+      try { note.gain.disconnect(); note.filter?.disconnect(); } catch (_) { /* Already released. */ }
     }
 
     function stopNotes(kind) {
@@ -64,6 +65,56 @@
       oscillator.onended = () => release(note);
       oscillator.start(at);
       oscillator.stop(at + duration + 0.02);
+    }
+
+    // Hila's b19a23a synthesis, routed through our shared mute/volume mixer.
+    function combatSound(slice) {
+      if (!mixer || !context || context.state !== 'running') return;
+      const at = context.currentTime;
+      function connect(source, filter, peak, attack, decay, stop, start = at) {
+        const gain = context.createGain();
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(peak, start + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+        source.connect(filter || gain);
+        if (filter) filter.connect(gain);
+        gain.connect(mixer);
+        const note = { oscillator: source, gain, filter, kind: 'effect' };
+        nodes.add(note);
+        source.onended = () => release(note);
+        source.start(start);
+        source.stop(start + stop);
+      }
+      if (!slice) {
+        const source = context.createOscillator();
+        source.type = 'square';
+        source.frequency.setValueAtTime(880, at);
+        source.frequency.exponentialRampToValueAtTime(220, at + 0.09);
+        const filter = context.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 2800;
+        connect(source, filter, 0.18, 0.005, 0.1, 0.11);
+        return;
+      }
+      if (!noiseBuffer) {
+        noiseBuffer = context.createBuffer(1, Math.floor(context.sampleRate / 2), context.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      }
+      const noise = context.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const band = context.createBiquadFilter();
+      band.type = 'bandpass';
+      band.Q.value = 1.5;
+      band.frequency.setValueAtTime(900, at);
+      band.frequency.exponentialRampToValueAtTime(7000, at + 0.12);
+      connect(noise, band, 0.5, 0.04, 0.18, 0.2);
+      [3150, 4730].forEach((frequency, i) => {
+        const source = context.createOscillator();
+        source.frequency.setValueAtTime(frequency, at + 0.07);
+        source.frequency.exponentialRampToValueAtTime(frequency * 0.94, at + 0.42);
+        connect(source, null, i ? 0.125 : 0.2, 0.004, 0.35, 0.36, at + 0.07);
+      });
     }
 
     function stopMusic() {
@@ -112,6 +163,8 @@
       if (!preferences.sound || !context || context.state !== 'running') return;
       attachMixer();
       switch (action) {
+        case 'shot': combatSound(false); break;
+        case 'slice': combatSound(true); break;
         case 'coin':
           tone(1046.5, 0.08, 0, 'effect', 'sine', 0.24);
           tone(1568, 0.12, 0.065, 'effect', 'sine', 0.18);

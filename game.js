@@ -12,6 +12,8 @@
     if (saved) {
       el('creature-count').value = clampInteger(saved.droneCount, 3, 1, COIN_DASH.maxStartingDrones);
       if ([1, 3, 5].includes(saved.startingLives)) el('starting-lives').value = saved.startingLives;
+      if (['easy', 'normal', 'hard'].includes(saved.difficulty)) el('difficulty').value = saved.difficulty;
+      el('player-count').value = saved.playerCount === 2 ? '2' : '1';
     }
   } catch { /* Private browsing or malformed saved settings: use defaults. */ }
 
@@ -21,16 +23,19 @@
       const droneCount = clampInteger(el('creature-count').value, COIN_DASH.droneCount, 1, COIN_DASH.maxStartingDrones);
       const selectedLives = Number(el('starting-lives').value);
       const startingLives = [1, 3, 5].includes(selectedLives) ? selectedLives : COIN_DASH.startingLives;
-      this.config = { ...COIN_DASH, droneCount, startingLives };
+      const difficulty = el('difficulty').value;
+      const playerCount = Number(el('player-count').value) === 2 ? 2 : 1;
+      this.config = window.CoinDashDifficulty.apply({ ...COIN_DASH, droneCount, startingLives, playerCount }, difficulty);
       const c = this.config;
       el('creature-count').value = droneCount;
-      try { localStorage.setItem('coin-dash-settings', JSON.stringify({ droneCount, startingLives })); } catch { /* Optional persistence. */ }
+      try { localStorage.setItem('coin-dash-settings', JSON.stringify({ droneCount, startingLives, difficulty, playerCount })); } catch { /* Optional persistence. */ }
       this.score = 0;
       this.level = 1;
       this.runTime = 0;
       this.round = new window.CoinDashRound(c);
       this.finished = false;
       this.paused = false;
+      this.players = null;
       this.physics.resume();
       this.physics.world.setBounds(16, 44, c.width - 32, c.height - 60);
       this.arena = new window.CoinDashArena(this);
@@ -61,44 +66,49 @@
       this.scoring = new window.CoinDashScoring(this);
       this.touch = new window.CoinDashTouchControls({ container: el('touch-controls'),
         onDash: () => this.abilities.dash(this.runTime) });
-      this.physics.add.overlap(this.player, this.coin, () => {
-        if (this.finished || this.paused) return;
-        this.collectCoin(this.coin.x, this.coin.y);
-        this.placeCoin();
-        this.updateHud();
-      });
-      const onSpecialCoin = coin => this.collectCoin(coin.x, coin.y);
+      const onSpecialCoin = coin => this.collectCoin(coin.x, coin.y, coin.runnerId);
       this.events.on('special-coin', onSpecialCoin);
-      this.physics.add.overlap(this.player, this.drones, () => {
-        if (this.finished || this.paused) return;
-        if (this.powerups.absorbHit(this.runTime)) return;
-        const hit = this.lives.hit(this.runTime);
-        if (!hit.damaged) return;
-        this.audio.play('hit');
-        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.cameras.main.shake(90, 0.003);
-        this.events.emit('player-hit', hit);
-        if (hit.dead) this.finish('Out of lives!');
-        else el('game-status').textContent = `${hit.remaining} ${hit.remaining === 1 ? 'life' : 'lives'} left — temporary shield active.`;
-      });
       this.cursors = this.input.keyboard.createCursorKeys();
       this.keys = this.input.keyboard.addKeys('W,A,S,D', false);
+      this.players = new window.CoinDashMultiplayer(this);
+      this.combat = new window.CoinDashCombat(this);
+      this.nearMiss = new window.CoinDashNearMiss(this);
+      for (const runner of this.players.runners) {
+        this.physics.add.overlap(runner.player, this.coin, () => {
+          if (this.finished || this.paused || runner.out) return;
+          this.collectCoin(this.coin.x, this.coin.y, runner.id);
+          this.placeCoin();
+        });
+        this.physics.add.overlap(runner.player, this.drones, (_player, enemy) => this.enemyContact(runner, enemy));
+      }
+      this.placeCoin();
       // Native settings widgets keep their arrow keys; only the arena suppresses scrolling.
-      this.input.keyboard.removeCapture(['UP', 'DOWN', 'LEFT', 'RIGHT', 'SPACE', 'SHIFT']);
+      this.input.keyboard.removeCapture(['UP', 'DOWN', 'LEFT', 'RIGHT', 'SPACE', 'SHIFT', 'ENTER', 'F', 'L']);
       const ignoresInput = event => /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target?.tagName || '');
       const onRestart = event => { if (!ignoresInput(event)) this.restartRound(); };
       const onPause = event => { if (!ignoresInput(event) && !event.repeat) this.setPaused(!this.paused); };
+      const onMode = event => {
+        if (ignoresInput(event) || event.repeat) return;
+        el('player-count').value = this.config.playerCount === 2 ? '1' : '2';
+        this.restartRound();
+      };
       this.input.keyboard.on('keydown-R', onRestart);
       this.input.keyboard.on('keydown-P', onPause);
       this.input.keyboard.on('keydown-ESC', onPause);
+      this.input.keyboard.on('keydown-M', onMode);
       const onBlur = () => { if (!this.finished) this.setPaused(true); };
       this.game.events.on(Phaser.Core.Events.BLUR, onBlur);
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         this.input.keyboard.off('keydown-R', onRestart);
         this.input.keyboard.off('keydown-P', onPause);
         this.input.keyboard.off('keydown-ESC', onPause);
+        this.input.keyboard.off('keydown-M', onMode);
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
         this.events.off('player-dash', onDash);
         this.events.off('special-coin', onSpecialCoin);
+        this.combat.destroy();
+        this.nearMiss.destroy();
+        this.players.destroy();
         this.lives.destroy();
         this.audio.destroy();
         this.abilities.destroy();
@@ -116,10 +126,16 @@
       this.updateHud();
     }
     isSpawnClear(x, y, radius = 20) { return this.arena.isClear(x, y, radius); }
-    collectCoin(x, y) {
+    getRunners() {
+      return this.players ? this.players.getRunners() : [{ id: 'p1', player: this.player, abilities: this.abilities }];
+    }
+    collectCoin(x, y, runnerId = 'p1') {
       if (this.finished || this.paused) return;
-      const result = this.scoring.collect(this.runTime);
+      const runner = this.players?.getRunner(runnerId);
+      if (this.players && (!runner || runner.out)) return;
+      const result = this.scoring.collect(this.runTime, runnerId);
       this.score = result.total;
+      this.players?.record(result.points, runnerId);
       const seconds = this.config.coinBonusSeconds;
       this.round.addTime(seconds * 1000);
       this.reactions.coin(this.runTime, { points: result.points, x, y, bonusSeconds: seconds });
@@ -127,20 +143,44 @@
       this.audio.play('coin');
       this.updateHud();
     }
+    awardPoints(points, reason, runnerId = 'p1') {
+      if (this.finished || this.paused) return 0;
+      const runner = this.players?.getRunner(runnerId);
+      if (this.players && (!runner || runner.out)) return 0;
+      const awarded = this.scoring.award(points, this.runTime);
+      this.score = this.scoring.total;
+      this.players?.record(awarded, runnerId);
+      if (awarded) this.events?.emit('score', awarded, reason, runnerId);
+      this.updateHud();
+      return awarded;
+    }
+    enemyContact(runner, enemy) {
+      if (this.finished || this.paused || runner.out || enemy.active === false) return;
+      this.nearMiss.contact(runner.id, enemy);
+      if (this.combat.contact(enemy, runner)) return;
+      if (this.powerups.absorbHit(this.runTime, runner.id)) return;
+      const hit = this.players.hit(runner, this.runTime);
+      if (!hit.damaged) return;
+      this.audio.play('hit');
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.cameras.main.shake(90, 0.003);
+      this.events.emit('player-hit', { ...hit, runnerId: runner.id });
+      if (hit.allOut) this.finish(this.config.playerCount === 2 ? 'Both players are out!' : 'Out of lives!');
+      else el('game-status').textContent = hit.dead ? `${runner.id.toUpperCase()} is out — keep going!`
+        : `${runner.id.toUpperCase()}: ${hit.remaining} ${hit.remaining === 1 ? 'life' : 'lives'} left — temporary shield active.`;
+    }
     spawnDrone(index, type = 'drone') {
       const c = this.config;
       if (this.drones.getLength() >= c.maxDrones) return null;
       const candidates = [{ x: 50, y: 80 }, { x: c.width - 50, y: 80 },
         { x: 50, y: c.height - 50 }, { x: c.width - 50, y: c.height - 50 }];
+      const distance = point => Math.min(...this.getRunners().map(runner => Math.hypot(point.x - runner.player.x, point.y - runner.player.y)));
       let position = candidates[index % candidates.length];
       for (let attempt = 0; attempt < 40; attempt++) {
         const next = { x: Phaser.Math.Between(40, c.width - 40), y: Phaser.Math.Between(70, c.height - 40) };
-        if (this.isSpawnClear(next.x, next.y, 20) && Phaser.Math.Distance.Between(next.x, next.y, this.player.x, this.player.y) >= 180) { position = next; break; }
+        if (this.isSpawnClear(next.x, next.y, 20) && distance(next) >= 180) { position = next; break; }
       }
-      if (Phaser.Math.Distance.Between(position.x, position.y, this.player.x, this.player.y) < 150) {
-        position = candidates.reduce((best, point) =>
-          Phaser.Math.Distance.Between(point.x, point.y, this.player.x, this.player.y) >
-          Phaser.Math.Distance.Between(best.x, best.y, this.player.x, this.player.y) ? point : best);
+      if (distance(position) < 150) {
+        position = candidates.reduce((best, point) => distance(point) > distance(best) ? point : best);
       }
       const enemy = window.CoinDashVisuals
         ? window.CoinDashVisuals.createEnemy(this, position.x, position.y, index, type)
@@ -166,16 +206,17 @@
     }
     placeCoin() {
       const c = this.config;
+      const away = (x, y) => this.getRunners().every(runner => Math.hypot(x - runner.player.x, y - runner.player.y) >= 60);
       let x = 40, y = 70, found = false;
       for (let attempt = 0; attempt < 50; attempt++) {
         x = Phaser.Math.Between(35, c.width - 35);
         y = Phaser.Math.Between(65, c.height - 35);
-        if (this.isSpawnClear(x, y, 14) && Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= 60) { found = true; break; }
+        if (this.isSpawnClear(x, y, 14) && away(x, y)) { found = true; break; }
       }
       if (!found) {
         search: for (let row = 70; row < c.height - 30; row += 30) {
           for (let column = 40; column < c.width - 30; column += 30) {
-            if (this.isSpawnClear(column, row, 14) && Phaser.Math.Distance.Between(column, row, this.player.x, this.player.y) >= 60) {
+            if (this.isSpawnClear(column, row, 14) && away(column, row)) {
               x = column; y = row; break search;
             }
           }
@@ -200,19 +241,15 @@
         this.audio.play('level');
         el('game-status').textContent = `Level ${this.level}! The swarm is faster and growing.`;
       }
-      const touch = this.touch.direction();
-      const editing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
-      const dx = touch.x + (editing ? 0 : Number(this.cursors.right.isDown || this.keys.D.isDown) - Number(this.cursors.left.isDown || this.keys.A.isDown));
-      const dy = touch.y + (editing ? 0 : Number(this.cursors.down.isDown || this.keys.S.isDown) - Number(this.cursors.up.isDown || this.keys.W.isDown));
-      const velocity = this.abilities.velocity(dx, dy, this.runTime);
-      this.player.body.setVelocity(velocity.x, velocity.y);
+      this.players.update(this.runTime, delta);
       this.scoring.update(this.runTime);
       this.reactions.update(this.runTime);
       this.missions.update(this.runTime);
       this.powerups.update(this.runTime, delta);
-      this.lives.update(this.runTime);
       window.CoinDashEnemies?.update?.(this, delta);
       this.rage.update(this.runTime, delta);
+      this.combat.update(this.runTime, delta);
+      this.nearMiss.update(this.runTime);
       this.updateHud();
     }
     updateHud() {
@@ -227,6 +264,8 @@
       this.paused = paused;
       this.round.setPaused(paused);
       this.touch.reset();
+      this.players?.setPaused(paused);
+      this.combat?.setPaused(paused);
       this.audio.setPaused(paused);
       this.reactions.setPaused(paused);
       if (paused) { this.physics.pause(); this.player.body.setVelocity(0, 0); }
@@ -240,6 +279,8 @@
       this.finished = true;
       // Normal update stops after game over; restore temporary enemy state now.
       this.rage.update(this.runTime, 0);
+      this.combat?.finish();
+      this.powerups?.finish();
       this.round.finish();
       this.touch.reset();
       this.scoring.finish(this.score, this.level);
@@ -251,9 +292,10 @@
       el('pause-game').disabled = true;
       el('game-status').textContent = `${reason} ${this.score} ${this.score === 1 ? 'point' : 'points'} scored. Reached level ${this.level}. Start a new round to play again.`;
       const c = this.config;
+      const summary = this.players?.summary() || `${this.score} points`;
       this.add.rectangle(c.width / 2, c.height / 2, 480, 180, 0x0a1120, 0.96).setDepth(20);
       this.add.text(c.width / 2, c.height / 2,
-        `${reason}\n${this.score} points · Level ${this.level}\nPress R to try again`,
+        `${reason}\n${summary} · Level ${this.level}\nPress R to try again`,
         { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 16 }).setOrigin(0.5).setDepth(21);
     }
   }

@@ -79,8 +79,12 @@
 
     chase() {
       const enemy = this.target;
-      const player = this.scene.player;
-      if (!enemy || !player) return;
+      if (!enemy) return;
+      const players = this.scene.getRunners ? this.scene.getRunners().map(runner => runner.player) : [this.scene.player];
+      const player = players.filter(Boolean).reduce((nearest, candidate) =>
+        !nearest || Math.hypot(candidate.x - enemy.x, candidate.y - enemy.y) < Math.hypot(nearest.x - enemy.x, nearest.y - enemy.y)
+          ? candidate : nearest, null);
+      if (!player) { enemy.body.setVelocity(0, 0); return; }
       const dx = player.x - enemy.x;
       const dy = player.y - enemy.y;
       const length = Math.hypot(dx, dy);
