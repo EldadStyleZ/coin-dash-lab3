@@ -40,6 +40,7 @@ class CoinDash extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    this.setupDifficulty();
   }
 
   // Shared helpers: features read tuning and change the score through these.
@@ -77,7 +78,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this.finished) return;
+    if (this.finished || this.difficultyMenuOpen) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)
@@ -104,6 +105,96 @@ class CoinDash extends Phaser.Scene {
       `${reason}\n${this.score} coins collected\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
+    this.showDifficultyHint();
+  }
+
+  // Difficulty start screen. difficultyMenuOpen lives on the scene instance like
+  // difficultyName: undefined on first load, so the menu shows before the first round.
+  setupDifficulty() {
+    const kb = this.input.keyboard;
+    this.difficultyMenuOpen = this.difficultyMenuOpen !== false;
+    // Hold the round while choosing: no physics (drones, collisions) and no scene timers.
+    this.time.paused = this.difficultyMenuOpen;
+    this.hudItems.push(() => `${this.difficultyLabel()} mode`);
+    kb.on(`keydown-${COIN_DASH.difficultyMenu.key}`, () => {
+      if (!this.difficultyMenuOpen) this.returnToDifficultyMenu();
+    });
+    // Digit keys (top row or numpad) pick the options in menu order.
+    kb.on('keydown', event => {
+      const name = this.difficultyNames()[Number(event.key) - 1];
+      if (this.difficultyMenuOpen && name) this.pickDifficulty(name);
+    });
+    if (this.difficultyMenuOpen) this.drawDifficultyMenu();
+  }
+
+  difficultyNames() {
+    const d = COIN_DASH.difficulty;
+    return Object.keys(d).filter(name => typeof d[name] === 'object');
+  }
+
+  difficultyLabel(name = this.difficultyName || COIN_DASH.difficulty.default) {
+    return name[0].toUpperCase() + name.slice(1);
+  }
+
+  // Describe an option through the shared helpers so the menu matches the round.
+  difficultySummary(name) {
+    const current = this.difficultyName;
+    this.difficultyName = name;
+    const speed = Math.round(this.getDroneSpeed() / COIN_DASH.droneSpeed * 100);
+    const text = `${this.getDroneCount()} drones · ${speed}% speed · ${this.getRoundSeconds()}s`;
+    this.difficultyName = current;
+    return text;
+  }
+
+  pickDifficulty(name) {
+    this.difficultyName = name;
+    this.difficultyMenuOpen = false;
+    this.scene.restart();
+  }
+
+  returnToDifficultyMenu() {
+    this.difficultyMenuOpen = true;
+    this.scene.restart();
+  }
+
+  drawDifficultyMenu() {
+    const c = COIN_DASH;
+    const cx = c.width / 2;
+    const current = this.difficultyName || c.difficulty.default;
+    this.physics.pause();
+    const menu = this.add.container(0, 0).setDepth(100);
+    menu.add(this.add.rectangle(cx, c.height / 2, c.width, c.height, 0x0a1120, 0.9));
+    menu.add(this.add.text(cx, 90, 'Choose difficulty',
+      { font: '30px monospace', color: '#ffffff' }).setOrigin(0.5));
+    const names = this.difficultyNames();
+    names.forEach((name, i) => {
+      const y = 175 + i * 85;
+      const stroke = name === current ? c.colors.coin : 0x3a4d6b;
+      const card = this.add.rectangle(cx, y, 440, 70, 0x182640).setStrokeStyle(3, stroke)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerover', () => card.setStrokeStyle(3, c.colors.player))
+        .on('pointerout', () => card.setStrokeStyle(3, stroke))
+        .on('pointerdown', () => this.pickDifficulty(name));
+      menu.add([card,
+        this.add.text(cx, y - 13, `${i + 1}  ${this.difficultyLabel(name)}`,
+          { font: '22px monospace', color: '#ffffff' }).setOrigin(0.5),
+        this.add.text(cx, y + 15, this.difficultySummary(name),
+          { font: '15px monospace', color: '#9fb3d1' }).setOrigin(0.5)]);
+    });
+    menu.add(this.add.text(cx, 445,
+      `Press 1-${names.length} or click to start · ${c.difficultyMenu.keyLabel} returns here`,
+      { font: '15px monospace', color: '#9fb3d1' }).setOrigin(0.5));
+  }
+
+  // Called from finish(): how to get back to the menu (tap works too).
+  showDifficultyHint() {
+    const c = COIN_DASH;
+    this.add.text(c.width / 2, c.height / 2 + 100,
+      `${c.difficultyMenu.keyLabel}: change difficulty (now ${this.difficultyLabel()})`,
+      { font: '16px monospace', color: '#9fb3d1', backgroundColor: '#0a1120',
+        padding: { x: 10, y: 6 } }
+    ).setOrigin(0.5).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.returnToDifficultyMenu());
   }
 }
 window.coinDashGame = new Phaser.Game({

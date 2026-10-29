@@ -13,5 +13,7 @@ window.COIN_DASH = {
     easy: { droneSpeed: 0.75, droneCount: 0.67, roundSeconds: 1.34 },
     normal: { droneSpeed: 1, droneCount: 1, roundSeconds: 1 },
     hard: { droneSpeed: 1.3, droneCount: 1.67, roundSeconds: 0.8 }
-  }
+  },
+  // Difficulty start screen: keys 1, 2, 3... pick the options above in order; this key reopens it.
+  difficultyMenu: { key: 'ESC', keyLabel: 'Esc' }
 };
