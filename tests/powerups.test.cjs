@@ -128,3 +128,20 @@ test('finite spawn attempts fall back to a distant corner when random points hit
     assert(Math.hypot(point.x - scene.player.x, point.y - scene.player.y) >= 85);
   } finally { Math.random = originalRandom; }
 });
+
+test('collecting a special coin emits exactly once with its type and position', () => {
+  const { scene, powerups } = setup();
+  const events = [];
+  scene.events = { emit: (name, payload) => events.push({ name, payload }) };
+  powerups.update(6000, 16);
+  const { x, y } = powerups.pickup;
+  scene.player.x = x; scene.player.y = y;
+  const coinBefore = { x: scene.coin.x, y: scene.coin.y };
+  powerups.update(6001, 1);
+  powerups.update(6017, 16);
+  assert.deepEqual(events, [{ name: 'special-coin', payload: { type: 'shield', x, y } }]);
+  assert.equal(scene.score, 7, 'core owns the score');
+  assert.deepEqual({ x: scene.coin.x, y: scene.coin.y }, coinBefore, 'special collection does not relocate the normal coin');
+  assert.equal(powerups.state.shieldReady, true);
+  powerups.destroy();
+});

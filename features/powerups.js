@@ -92,14 +92,15 @@
       const { x, y } = this.spawnPosition();
       const model = this.state.pickup;
       const color = model.type === 'shield' ? 0x71e8ce : 0xc299ff;
-      const shape = this.scene.add.circle(x, y, 15, 0x152b40, 1).setStrokeStyle(3, color);
-      const label = this.scene.add.text(x, y, model.type === 'shield' ? 'S' : 'M', {
-        font: 'bold 17px monospace', color: model.type === 'shield' ? '#71e8ce' : '#c299ff'
+      const shape = this.scene.add.circle(x, y, 17, 0xb98a31, 1).setStrokeStyle(3, color);
+      const inset = this.scene.add.circle(x, y, 13, 0xffd166, 1).setStrokeStyle(1, 0xfff1b0);
+      const label = this.scene.add.text(x, y, model.type === 'shield' ? '🛡' : '🧲', {
+        font: '18px sans-serif', color: '#152b40'
       }).setOrigin(0.5);
-      const caption = this.scene.add.text(x, y - 27, model.type.toUpperCase(), {
+      const caption = this.scene.add.text(x, y - 29, model.type === 'shield' ? 'Shield coin' : 'Magnet coin', {
         font: '9px monospace', color: '#e5edf7', backgroundColor: '#101c31'
       }).setOrigin(0.5);
-      this.pickup = { x, y, model, objects: [shape, label, caption] };
+      this.pickup = { x, y, model, objects: [shape, inset, label, caption] };
     }
 
     removePickup() {
@@ -113,8 +114,12 @@
       if (this.pickup && this.pickup.model !== this.state.pickup) this.removePickup();
       if (this.state.pickup && !this.pickup) this.spawnPickup();
       if (this.pickup && Math.hypot(this.scene.player.x - this.pickup.x, this.scene.player.y - this.pickup.y) <= 29) {
-        this.state.collect(time);
+        const { x, y } = this.pickup;
+        const type = this.state.collect(time);
         this.removePickup();
+        // Core awards normal coin score/time/mission credit. This module never
+        // relocates the regular coin merely because a special coin was collected.
+        if (type) this.scene.events?.emit('special-coin', { type, x, y });
       }
       if (this.state.magnetActive(time) && this.scene.coin?.active !== false) {
         const coin = this.scene.coin;
@@ -148,7 +153,7 @@
       if (this.state.shieldActive(time)) parts.push(`Shield ready · ${Math.ceil((this.state.shieldUntil - time) / 1000)}s`);
       else if (this.state.graceActive(time)) parts.push('Shield absorbed a hit!');
       if (this.state.magnetActive(time)) parts.push(`Coin magnet · ${Math.ceil((this.state.magnetUntil - time) / 1000)}s`);
-      if (this.state.pickup) parts.push(`${this.state.pickup.type === 'shield' ? 'Shield' : 'Magnet'} on the field · ${Math.ceil((this.state.pickup.expiresAt - time) / 1000)}s`);
+      if (this.state.pickup) parts.push(`${this.state.pickup.type === 'shield' ? 'Shield coin' : 'Magnet coin'} on the field · ${Math.ceil((this.state.pickup.expiresAt - time) / 1000)}s`);
       if (!parts.length) parts.push(`Next powerup in ${Math.max(0, Math.ceil((this.state.nextSpawnAt - time) / 1000))}s`);
       const text = parts.join(' / ');
       if (this.status.textContent !== text) this.status.textContent = text;
