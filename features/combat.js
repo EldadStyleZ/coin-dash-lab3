@@ -46,6 +46,7 @@
       this.colliders = [scene.physics.add.overlap(this.bullets, scene.drones, (bullet, enemy) => {
         if (!this.active() || !this.shots.has(bullet) || bullet.active === false) return;
         const owner = this.shots.get(bullet).runnerId;
+        if (!this.runner(owner)) { this.removeBullet(bullet); return; }
         if (this.kill(enemy, owner, 'shot')) this.removeBullet(bullet);
       })];
       if (scene.arena?.obstacles) this.colliders.push(scene.physics.add.collider(this.bullets, scene.arena.obstacles,
@@ -71,7 +72,7 @@
       return typeof this.scene.getRunners === 'function' ? this.scene.getRunners()
         : [{ id: 'p1', player: this.scene.player, abilities: this.scene.abilities }];
     }
-    runner(id) { return this.runners().find(runner => runner.id === id && runner.player && runner.player.active !== false); }
+    runner(id) { return this.runners().find(runner => runner.id === id && !runner.out && runner.player && runner.player.active !== false && runner.player.body?.enable !== false); }
     now() { return Number.isFinite(this.scene.runTime) && this.scene.runTime >= 0 ? this.scene.runTime : this.time; }
     removeBullet(bullet) {
       if (!this.shots.has(bullet)) return;
@@ -103,7 +104,7 @@
       return true;
     }
     kill(enemy, runnerId, cause, swing = null) {
-      if (!this.active() || !enemy || enemy.active === false || !enemy.body || this.defeated.has(enemy)) return false;
+      if (!this.active() || !this.runner(runnerId) || !enemy || enemy.active === false || !enemy.body || this.defeated.has(enemy)) return false;
       this.defeated.add(enemy);
       const type = enemy.getData('type');
       const points = POINTS[type] || 3;
@@ -231,7 +232,7 @@
       this.updateEffects(time);
       if (formTarget(root.document?.activeElement)) { this.held.clear(); this.queued.clear(); }
       for (const [bullet, shot] of this.shots) {
-        if (bullet.active === false || !bullet.body || time >= shot.expiresAt ||
+        if (!this.runner(shot.runnerId) || bullet.active === false || !bullet.body || time >= shot.expiresAt ||
             bullet.x < 16 || bullet.x > 784 || bullet.y < 44 || bullet.y > 484) this.removeBullet(bullet);
       }
       for (const id of new Set([...this.held, ...this.queued])) {
