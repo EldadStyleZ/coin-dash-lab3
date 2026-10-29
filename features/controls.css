@@ -1,0 +1,50 @@
+#touch-controls { display: none; margin-top: 16px; }
+#touch-controls[data-force-visible="true"] { display: block; }
+.coin-touch-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--border, #2b3b52);
+  border-radius: 14px;
+  background: #101c2ee6;
+}
+.coin-touch-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(2, 48px);
+  gap: 6px;
+}
+.coin-touch-button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 10px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  font-size: 22px;
+  line-height: 1;
+}
+.coin-touch-button[aria-pressed="true"] {
+  background: #76f4ca;
+  color: #082a24;
+  border-color: #a1ffe1;
+  box-shadow: 0 0 0 3px #76f4ca26;
+}
+.coin-touch-up { grid-column: 2; grid-row: 1; }
+.coin-touch-left { grid-column: 1; grid-row: 2; }
+.coin-touch-down { grid-column: 2; grid-row: 2; }
+.coin-touch-right { grid-column: 3; grid-row: 2; }
+.coin-touch-dash { min-width: 80px; min-height: 64px; padding: 8px; font-size: 14px; }
+@media (pointer: coarse), (max-width: 900px) {
+  #touch-controls { display: block; }
+}
+@media (max-width: 360px) {
+  .coin-touch-controls { padding: 10px; gap: 10px; }
+  .coin-touch-pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 4px; }
+  .coin-touch-button { min-width: 44px; min-height: 44px; }
+  .coin-touch-dash { min-width: 64px; min-height: 56px; }
+}
