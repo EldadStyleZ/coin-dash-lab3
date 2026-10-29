@@ -264,7 +264,8 @@
       setText('level-value', String(this.level).padStart(2, '0'));
       setText('time-value', `${this.round.secondsRemaining}s`);
       setText('enemy-value', this.drones.getLength());
-      this.levelHint.setText(`LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`);
+      const hint = `LEVEL ${this.level} / ${this.drones.getLength()} CREATURES`;
+      if (this.levelHint.text !== hint) this.levelHint.setText(hint);
     }
     setPaused(paused) {
       if (this.finished || this.paused === paused) return;
