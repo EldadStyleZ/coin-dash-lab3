@@ -20,9 +20,12 @@ function harness(supported = true) {
   };
   const parameter = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} });
   class Context {
-    constructor() { contexts++; this.state = 'suspended'; this.currentTime = 0; this.destination = {}; }
+    constructor() { contexts++; this.state = 'suspended'; this.currentTime = 0; this.sampleRate = 44100; this.destination = {}; }
     async resume() { this.state = 'running'; }
     createGain() { return { gain: parameter(), connect() {}, disconnect() {} }; }
+    createBiquadFilter() { return { frequency: parameter(), Q: parameter(), connect() {}, disconnect() {} }; }
+    createBuffer(_channels, count) { const data = new Float32Array(count); return { getChannelData() { return data; } }; }
+    createBufferSource() { return this.createOscillator(); }
     createOscillator() {
       const node = { frequency: parameter(), connect() {}, disconnect() { this.disconnected = true; }, start() {}, stop() {}, onended: null };
       oscillators.push(node);
@@ -112,4 +115,22 @@ test('missing Web Audio does not block gameplay or create timers', () => {
   audio.destroy();
   assert.equal(h.contexts(), 0);
   assert.equal(h.intervals.size, 0);
+});
+
+
+test('samurai slice and shot effects use shared context and release on pause', async () => {
+  const h = harness();
+  const audio = h.audio.create();
+  await h.gesture();
+  const before = h.oscillators.length;
+  audio.play('shot');
+  audio.play('slice');
+  assert.equal(h.oscillators.length - before, 4); // shot + noise + two metallic partials
+  assert.equal(h.contexts(), 1);
+  audio.setPaused(true);
+  assert.ok(h.oscillators.every(node => node.disconnected));
+  const stopped = h.oscillators.length;
+  audio.play('slice');
+  assert.equal(h.oscillators.length, stopped);
+  audio.destroy();
 });

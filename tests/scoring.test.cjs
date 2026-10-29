@@ -153,3 +153,28 @@ test('death after base duration is not survival when coin bonus time remains', (
  const done = new Scoring(scene({ runTime: 68000, round: { secondsRemaining: 0 } }));
  done.finish(5, 7); assert.match(element.textContent, /round survived/);
 });
+
+
+test('bonus points never become coin credit and player combo chains stay separate', () => {
+  const { Scoring } = load();
+  const scoring = new Scoring(scene());
+  scoring.collect(0, 'p1'); scoring.collect(100, 'p1');
+  assert.equal(scoring.collect(200, 'p2').points, 1);
+  assert.equal(scoring.collect(300, 'p1').points, 2);
+  const coins = scoring.coins;
+  assert.equal(scoring.award(10, 400), 10);
+  assert.equal(scoring.total, 15);
+  assert.equal(scoring.coins, coins);
+  assert.equal(scoring.award(-1, 500), 0);
+  scoring.scene.paused = true;
+  assert.equal(scoring.award(10, 500), 0);
+});
+
+test('different difficulty and player modes have distinct personal records', () => {
+  const { Scoring } = load();
+  const normal = new Scoring(scene());
+  normal.finish(100, 2);
+  const hard = new Scoring(scene({ config: { droneCount: 3, startingLives: 3, difficulty: 'hard' } }));
+  const pair = new Scoring(scene({ config: { droneCount: 3, startingLives: 3, playerCount: 2 } }));
+  assert.equal(hard.best, 0); assert.equal(pair.best, 0);
+});

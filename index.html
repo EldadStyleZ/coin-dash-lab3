@@ -21,25 +21,28 @@
   </div>
   <div class="game-layout">
     <section class="game-stage" aria-label="Game arena">
-      <div id="game" tabindex="0" aria-label="Coin Dash arena. Move with arrow keys or WASD. P pauses, R restarts, Shift dashes."><div id="reaction-overlay" aria-live="polite" aria-atomic="true"></div></div>
+      <div id="game" tabindex="0" aria-label="Coin Dash arena. Move with arrow keys or WASD. P pauses, R restarts, Space or Shift slices, F shoots. In two-player mode P2 uses arrows, Enter to slice and L to shoot."><div id="reaction-overlay" aria-live="polite" aria-atomic="true"></div></div>
       <p id="game-status" role="status" aria-live="polite">Collect coins and avoid creatures.</p>
       <div id="touch-controls" aria-label="Touch game controls"></div>
       <p id="rage-status" role="status" aria-live="polite"></p>
-      <p id="dash-status" role="status">Dash ready — Shift</p>
-      <p class="controls-help"><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move <span>·</span> <kbd>P</kbd> Pause <span>·</span> <kbd>R</kbd> Restart <span>·</span> <kbd>Shift</kbd> Dash</p>
+      <div class="combat-readout"><p id="dash-status" role="status">Slice ready — Space / Shift</p><p id="p2-dash-status" role="status" hidden></p></div>
+      <p id="multiplayer-status" role="status" aria-live="polite"></p>
+      <p class="controls-help"><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move <span>·</span> <kbd>P</kbd> Pause <span>·</span> <kbd>R</kbd> Restart <span>·</span> <kbd>Space</kbd> / <kbd>Shift</kbd> Slice <span>·</span> <kbd>F</kbd> Shoot</p>
     </section>
     <aside class="sidebar" aria-label="Round controls">
       <section class="panel"><h2 class="panel-title">ROUND MISSIONS</h2><div id="mission-status" role="status" aria-live="polite"></div></section>
-      <section class="panel"><h2 class="panel-title">POWER-UPS</h2><div id="powerup-status" role="status" aria-live="polite"></div><p>Pick up shields to block a hit, or magnets to pull nearby coins.</p></section>
+      <section class="panel"><h2 class="panel-title">POWER-UPS</h2><div id="powerup-status" role="status" aria-live="polite"></div><p>Shield coins block a hit, magnets pull gold, and speed coins give a 5-second boost. Every special coin also adds 3 seconds.</p></section>
       <section class="panel"><h2 class="panel-title">YOUR RECORD</h2><div id="progress-status" role="status" aria-live="polite"></div><p>Collect quickly for up to ×3 points. Best scores are saved for these round settings.</p></section>
-      <section class="panel"><h2 class="panel-title">YOUR LIVES</h2><div id="lives-status" role="status" aria-live="polite">♥ ♥ ♥</div><p>After a hit, you get a brief shield. Keep moving!</p></section>
+      <section class="panel"><h2 class="panel-title">YOUR LIVES</h2><div id="lives-status" role="status" aria-live="polite">♥ ♥ ♥</div><div id="p2-lives-status" role="status" aria-live="polite" hidden></div><p>After a hit, you get a brief shield. Keep moving!</p></section>
       <form class="panel" id="round-settings">
         <h2 class="panel-title">BUILD YOUR ROUND</h2>
+        <div class="field"><label for="difficulty">Difficulty</label><select id="difficulty"><option value="easy">Easy — warm up</option><option value="normal" selected>Normal — coin chase</option><option value="hard">Hard — swarm storm</option></select></div>
+        <div class="field"><label for="player-count">Players</label><select id="player-count"><option value="1">1 — solo run</option><option value="2">2 — local showdown</option></select></div>
         <div class="field"><label for="creature-count">Starting creatures</label><input id="creature-count" type="number" min="1" max="12" step="1" value="3" required></div>
         <div class="field"><label for="starting-lives">Starting lives</label><select id="starting-lives"><option value="1">1 — sudden death</option value="3" selected>3 — standard</option><option value="5">5 — practice</option></select></div>
-        <p>Each 10 seconds: a new level, faster creatures, and one more to dodge. Start with 60 seconds; every coin adds 3 seconds.</p>
+        <p>Each 10 seconds: a new palette, faster creatures, and one more to dodge. Normal starts at 60 seconds; Easy gives 80, Hard 48. Every coin adds 3 seconds.</p>
         <div class="button-row"><button id="start-game" type="submit">New round ↗</button><button id="pause-game" type="button">Pause</button></div>
-        <p>Settings apply when you start a new round.</p>
+        <p>Settings apply on New round. Difficulty also scales your starting creature count.</p><p>2P: P1 uses WASD, Space/Shift and F. P2 uses arrows, Enter and L. Separate lives and scores; shared timer. M switches mode and restarts.</p>
       </form>
       <section class="panel"><h2 class="panel-title">SOUND STATION</h2><div id="audio-controls"></div><div id="reaction-controls"></div></section>
     </aside>
@@ -48,6 +51,7 @@
 </main>
 <script src="vendor/phaser-3.90.0.min.js"></script>
 <script src="settings.js"></script>
+<script src="features/difficulty.js"></script>
 <script src="features/visuals.js"></script>
 <script src="features/lives.js"></script>
 <script src="features/audio.js"></script>
@@ -60,6 +64,10 @@
 <script src="features/reactions.js"></script>
 <script src="features/missions.js"></script>
 <script src="features/powerups.js"></script>
+<script src="features/enemies.js"></script>
+<script src="features/combat.js"></script>
+<script src="features/near-miss.js"></script>
+<script src="features/multiplayer.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

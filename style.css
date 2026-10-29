@@ -126,3 +126,10 @@ footer, .page-footer { margin-top: 24px; color: #8194ae; font-size: 11px; }
 #progress-status { color: var(--gold); font-size: 13px; }
 #game-status { margin-top: 14px; }
 #audio-controls .audio-status { font-size: 11px; color: var(--muted); }
+
+.combat-readout { display: flex; gap: 1rem; flex-wrap: wrap; }
+.combat-readout p { margin: .25rem 0; color: #ffd166; }
+#multiplayer-status { color: #8bd5ff; font-weight: 700; }
+#p2-lives-status { color: #8bd5ff; margin-top: .5rem; }
+#rage-status { color: #ff9c9c; }
+[hidden] { display: none !important; }

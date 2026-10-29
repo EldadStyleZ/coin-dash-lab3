@@ -14,13 +14,14 @@
       // Snapshot initial settings: leveling must not change the comparison group.
       this.startingCreatures = setting(config.droneCount, 3);
       this.startingLives = setting(config.startingLives, 3);
-      this.storageKey = `coin-dash-best:v1:drones=${this.startingCreatures}:lives=${this.startingLives}`;
+      this.storageKey = `coin-dash-best:v2:drones=${this.startingCreatures}:lives=${this.startingLives}:difficulty=${config.difficulty || 'normal'}:players=${config.playerCount === 2 ? 2 : 1}`;
       this.total = 0;
       this.coins = 0;
       this.streak = 0;
       this.combo = 1;
       this.time = 0;
       this.lastCoinTime = null;
+      this.chains = new Map();
       this.message = '';
       this.messageUntil = 0;
       this.finished = false;
@@ -53,12 +54,17 @@
       return true;
     }
 
-    collect(time) {
+    collect(time, runnerId = 'p1') {
       if (this.destroyed || this.finished || this.scene.paused || !this.advance(time)) {
         return { points: 0, total: this.total, combo: this.combo };
       }
+      const chain = this.chains.get(runnerId) || { last: null, streak: 0 };
+      if (chain.last === null || time - chain.last >= COMBO_WINDOW_MS) chain.streak = 0;
+      chain.last = time;
+      chain.streak++;
+      this.chains.set(runnerId, chain);
       this.lastCoinTime = time;
-      this.streak++;
+      this.streak = chain.streak;
       // Coins 1–2: x1; coins 3–5: x2; coin 6 onward: x3.
       this.combo = this.streak >= 6 ? 3 : this.streak >= 3 ? 2 : 1;
       this.total = Math.min(Number.MAX_SAFE_INTEGER, this.total + this.combo);
@@ -69,6 +75,15 @@
       }
       this.render();
       return { points: this.combo, total: this.total, combo: this.combo };
+    }
+
+    award(points, time) {
+      if (this.destroyed || this.finished || this.scene.paused || this.scene.finished
+          || !Number.isSafeInteger(points) || points <= 0 || !this.advance(time)) return 0;
+      const awarded = Math.min(points, Number.MAX_SAFE_INTEGER - this.total);
+      this.total += awarded;
+      this.render();
+      return awarded;
     }
 
     update(time) {
