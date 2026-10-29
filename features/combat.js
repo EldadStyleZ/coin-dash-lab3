@@ -19,6 +19,7 @@
       this.defeated = new WeakSet();
       this.respawns = [];
       this.effects = [];
+      this.lastTrail = new Map();
       this.killChains = new Map();
       this.lastSliceAt = -Infinity;
       this.killStatus = root.document?.getElementById?.('kill-status') || null;
@@ -36,7 +37,7 @@
           this.lastStrikeIds.set(runnerId, strikeId);
           const swing = { id: strikeId, end: ability.strikeEndsAt, kills: 0, direction: { ...ability.strikeDirection } };
           this.swings.set(runnerId, swing);
-          this.strikeFeedback(runner, swing);
+          this.dashTrail(runner, this.now());
           this.evaluateStrike(runner, swing);
         };
         scene.events.on('player-strike', onStrike);
@@ -129,7 +130,8 @@
     }
     addEffect(object, time, lifetime, rise = 0) {
       object.setDepth?.(6);
-      const effect = { object, start: time, end: time + lifetime, y: object.y, rise };
+      const effect = { object, start: time, end: time + lifetime, y: object.y, rise,
+        alpha: Number.isFinite(object.alpha) ? object.alpha : 1 };
       this.effects.push(effect);
       while (this.effects.length > 48) this.effects.shift().object.destroy();
       return effect;
@@ -148,28 +150,25 @@
       this.effects = this.effects.filter(effect => {
         if (!effect.object.scene) return false;
         if (time >= effect.end) { effect.object.destroy(); return false; }
-        if (effect.runner) {
-          if (!this.runner(effect.runner.id)) { effect.object.destroy(); return false; }
-          effect.object.x = effect.runner.player.x + effect.offset.x;
-          effect.y = effect.runner.player.y + effect.offset.y;
-        }
         const progress = (time - effect.start) / (effect.end - effect.start);
-        effect.object.setAlpha?.(this.reducedMotion ? 1 : Math.max(0, 1 - progress));
+        effect.object.setAlpha?.(effect.alpha * (this.reducedMotion ? 1 : Math.max(0, 1 - progress)));
         effect.object.y = effect.y - effect.rise * progress;
         return true;
       });
+      for (const runner of this.runners()) {
+        if (!this.runner(runner.id) || time >= (runner.abilities?.strikeEndsAt || 0)) continue;
+        this.dashTrail(runner, time);
+      }
     }
-    strikeFeedback(runner, swing) {
-      const direction = swing.direction;
-      const angle = Math.atan2(direction.y, direction.x);
-      // Keep the blade beside the runner throughout the sword lunge.
-      const x = runner.player.x + Math.cos(angle) * 38;
-      const y = runner.player.y + Math.sin(angle) * 38;
-      const blade = this.scene.add.rectangle(x, y, 58, 4, runner.id === 'p2' ? 0x9bdeff : 0xffffff, 1);
-      blade.rotation = angle + Math.PI / 2;
-      const effect = this.addEffect(blade, this.now(), swing.end - this.now());
-      effect.runner = runner;
-      effect.offset = { x: Math.cos(angle) * 38, y: Math.sin(angle) * 38 };
+    dashTrail(runner, time) {
+      if (this.reducedMotion || time - (this.lastTrail.get(runner.id) ?? -Infinity) < 32) return;
+      const player = runner.player;
+      // Restore Hila's fading body afterimages. Each stays where it was spawned,
+      // leaving a visible trail behind the sword dash instead of a moving bar.
+      this.addEffect(this.scene.add.rectangle(player.x, player.y,
+        player.displayWidth || player.width || 24, player.displayHeight || player.height || 24,
+        0xffffff, 0.35), time, 160);
+      this.lastTrail.set(runner.id, time);
     }
     inStrike(enemy, runner, swing) {
       if (!enemy || enemy.active === false || !enemy.body || enemy.body.enable === false) return false;
@@ -264,6 +263,7 @@
       if (this.finished) return;
       this.finished = true;
       this.swings.clear();
+      this.lastTrail.clear();
       this.killChains.clear();
       if (this.killStatus) this.killStatus.textContent = '';
       this.held.clear();
