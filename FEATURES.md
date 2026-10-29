@@ -283,5 +283,26 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| FEEDBACK-STATE | Per-player performance streaks, failure resets and contextual callouts | Eldad feedback agent | implementing | eldad/feedback-state; features/reactions.js, tests/reactions.test.cjs | Coin praise at 3/6/10 quick coins; kill praise from actual 2/3/5 kill chains; misses/damage/gaps reset; clear invalid praise; idle means no coin or kill success. Keep speech throttling and factual rewards. |
-| MISS-PENALTY | Longer missed-dash cooldown and successful-kill mission wiring | Eldad coordinator | implementing | eldad/feedback-integration; features/abilities.js, features/combat.js, features/missions.js, game.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/missions.test.cjs, tests/integration.test.cjs, index.html, README.md, docs/feature-contract.md | Increase cooldown from 1000 to 1800ms, retain instant kill reset; replace three attempts mission with three actual sword kills; emit typed miss/kill events and reset combat chain on damage. Preserve collision-only kills and original animation. |
+| FEEDBACK-STATE | Per-player performance streaks, failure resets and contextual callouts | Eldad feedback agent | done | eldad/feedback-state; features/reactions.js, tests/reactions.test.cjs | Coin praise at 3/6/10 quick coins; kill praise from actual 2/3/5 kill chains; misses/damage/gaps reset; clear invalid praise; idle means no coin or kill success. Keep speech throttling and factual rewards. |
+| MISS-PENALTY | Longer missed-dash cooldown and successful-kill mission wiring | Eldad coordinator | done | eldad/feedback-integration; features/abilities.js, features/combat.js, features/missions.js, game.js, tests/abilities.test.cjs, tests/combat.test.cjs, tests/missions.test.cjs, tests/integration.test.cjs, index.html, README.md, docs/feature-contract.md | Increase cooldown from 1000 to 1800ms, retain instant kill reset; replace three attempts mission with three actual sword kills; emit typed miss/kill events and reset combat chain on damage. Preserve collision-only kills and original animation. |
+
+- **172 tests pass**, including real abilities/combat/reactions/missions together.
+  Praise requires actual per-player performance: coin milestones 3/6/10 with
+  gaps under 2 seconds, or actual kill-chain milestones 2/3/5 within 2.5 seconds.
+  Miss/damage events reset only the affected player; expired streaks reset on
+  update. Invalid praise and its owned speech are cleared immediately. Global
+  caption/speech/repeat throttles remain; pause uses active time and restart removes
+  listeners. Idle comments require 12 seconds without a coin OR kill and disappear
+  as soon as successful play resumes. Factual reward floats remain unchanged.
+- Fixed the false-praise source: the former three-attack mission praised three
+  misses as “Sword master.” It now requires three confirmed sword kills and uses
+  factual goal-completion wording. Presses and projectile kills do not advance it.
+- Miss cooldown is now 1800ms from attack start (previously 1000ms). Successful
+  kills still reset it immediately. Original contact-only kills, hitboxes, 180ms
+  dash movement, trail and Shift disabling are unchanged.
+- Browser confirms miss recovery shows 1.6s after a 250ms attack check and the
+  sword-kill mission remains 0/3; no console warnings/errors. Independent review
+  found event clocks/ownership, cleanup and scoped gameplay changes consistent.
+- Integration initially failed its old exact caption-text assertion because the
+  message now includes the player and earned count. Updated that assertion and
+  added real-event failure/reset/recovery tests; all combined checks pass.
