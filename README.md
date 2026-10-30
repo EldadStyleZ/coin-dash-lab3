@@ -42,6 +42,11 @@ Space and arrow keys never scroll the play screen, including during cooldown.
 - Each level changes the arena color, adds a creature (up to 20), and increases
   speed with a cap. Four starting obstacles create routes and cover.
 - Sword kills require physical contact during the dash, as in the original game. A kill resets the attack cooldown immediately. A missed strike has a 1.8-second cooldown; the sword lunges at 2.5× movement speed for 180ms. There is no separate Shift dash. The original fading afterimages and diagonal hit slash are preserved.
+- Accepted sword attacks add Chidori-inspired blue-white lightning and an original
+  synthesized electric cutting sound. The effect follows both players' existing
+  lunges and keeps their original afterimages. It is cosmetic: movement, hitboxes,
+  contact kills and cooldowns are unchanged. Reduced-motion settings simplify the
+  lightning; audio uses the existing sound/volume controls and works offline.
 - Chain kills within 2.5 seconds for double/triple-kill feedback. A missed strike breaks the chain. Shooting kills also reset that player's shot cooldown.
 - Fast coins build ×2/×3 combos. Personal bests are saved per initial settings.
 - Collect five coins, land three sword kills, and reach level three to complete missions.
@@ -61,13 +66,13 @@ Space and arrow keys never scroll the play screen, including during cooldown.
   and sound bursts are limited to eight simultaneous effect voices.
 - Pause, focus loss, restart and game over cleanly stop active gameplay effects.
 
-## Pair collaboration
+## Development ownership
 
-**Read [FEATURES.md](FEATURES.md), [HILA_STATUS.md](HILA_STATUS.md), and
-[AGENTS.md](AGENTS.md) before work.** Eldad alone edits FEATURES.md; Hila alone
-edits HILA_STATUS.md. Both read both files. Claim features before coding, isolate
-agents with branches/worktrees, and review and test before merging. See
-[the feature contract](docs/feature-contract.md) for Hila's enemy adapter.
+Eldad owns ongoing development as of 30 October 2026; Hila has finished her work.
+Her contributions and the original lab handoff remain in the history.
+Read [FEATURES.md](FEATURES.md) and [AGENTS.md](AGENTS.md), claim features before
+coding, isolate agents with branches/worktrees, and review and test before merging.
+FEATURES.md remains the coordinator's single-writer board.
 
 ## Architecture and checks
 

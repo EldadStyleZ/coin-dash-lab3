@@ -70,6 +70,7 @@
       this.keys = this.input.keyboard.addKeys('W,A,S,D', false);
       this.players = new window.CoinDashMultiplayer(this);
       this.combat = new window.CoinDashCombat(this);
+      this.lightning = new window.CoinDashLightning(this);
       this.nearMiss = new window.CoinDashNearMiss(this);
       for (const runner of this.players.runners) {
         this.physics.add.overlap(runner.player, this.coin, () => {
@@ -111,6 +112,7 @@
         this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
         this.events.off('special-coin', onSpecialCoin);
         this.combat.destroy();
+        this.lightning.destroy();
         this.nearMiss.destroy();
         this.players.destroy();
         this.lives.destroy();
@@ -271,6 +273,7 @@
       window.CoinDashEnemies?.update?.(this, delta);
       this.rage.update(this.runTime, delta);
       this.combat.update(this.runTime, delta);
+      this.lightning.update(this.runTime, delta);
       this.nearMiss.update(this.runTime);
       this.updateHud();
     }
@@ -289,6 +292,7 @@
       this.touch.reset();
       this.players?.setPaused(paused);
       this.combat?.setPaused(paused);
+      this.lightning?.setPaused(paused);
       this.audio.setPaused(paused);
       this.reactions.setPaused(paused);
       if (paused) { this.physics.pause(); this.player.body.setVelocity(0, 0); }
@@ -303,6 +307,7 @@
       // Normal update stops after game over; restore temporary enemy state now.
       this.rage.update(this.runTime, 0);
       this.combat?.finish();
+      this.lightning?.finish();
       this.powerups?.finish();
       this.round.finish();
       this.touch.reset();
