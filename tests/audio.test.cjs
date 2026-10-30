@@ -8,6 +8,8 @@ function harness(supported = true) {
   const listeners = new Map();
   const intervals = new Map();
   const oscillators = [];
+  const gains = [];
+  const filters = [];
   let contexts = 0;
   let currentContext = null;
   let intervalId = 0;
@@ -33,16 +35,23 @@ function harness(supported = true) {
   const parameter = () => ({ value: 0, values: [],
     setValueAtTime(value) { this.values.push(value); },
     linearRampToValueAtTime(value) { this.values.push(value); },
-    exponentialRampToValueAtTime(value) { this.values.push(value); }, setTargetAtTime() {} });
+    exponentialRampToValueAtTime(value) { this.values.push(value); },
+    setTargetAtTime(value) { this.values.push(value); } });
   class Context {
     constructor() { contexts++; currentContext = this; this.state = 'suspended'; this.currentTime = 0; this.sampleRate = 44100; this.destination = {}; }
     async resume() { this.state = 'running'; }
-    createGain() { return { gain: parameter(), connect() {}, disconnect() {} }; }
-    createBiquadFilter() { return { frequency: parameter(), Q: parameter(), connect() {}, disconnect() {} }; }
+    createGain() {
+      const node = { gain: parameter(), connect() {}, disconnect() { this.disconnected = true; } };
+      gains.push(node); return node;
+    }
+    createBiquadFilter() {
+      const node = { frequency: parameter(), Q: parameter(), connect() {}, disconnect() { this.disconnected = true; } };
+      filters.push(node); return node;
+    }
     createBuffer(_channels, count) { const data = new Float32Array(count); return { getChannelData() { return data; } }; }
     createBufferSource() { return this.createOscillator(); }
     createOscillator() {
-      const node = { frequency: parameter(), connect() {}, disconnect() { this.disconnected = true; }, start() {},
+      const node = { frequency: parameter(), connect() {}, disconnect() { this.disconnected = true; }, start(at) { this.startAt = at; },
         stop(at) { this.stopAt = at; }, onended: null };
       oscillators.push(node);
       return node;
@@ -58,7 +67,11 @@ function harness(supported = true) {
   return {
     audio: window.CoinDashAudio,
     contexts: () => contexts,
-    intervals, oscillators, listeners,
+    intervals, oscillators, listeners, gains, filters,
+    volume(value) {
+      const input = container.children[2].children[1];
+      input.value = String(value); input.emit('input');
+    },
     setTime(ms, endNotes = true) {
       currentContext.currentTime = ms / 1000;
       if (endNotes) oscillators.forEach(node => {
@@ -77,6 +90,7 @@ test('initial game creates no context or audio until a user gesture', async () =
   const h = harness();
   const audio = h.audio.create();
   audio.play('coin');
+  audio.play('lightning');
   assert.equal(h.contexts(), 0);
   assert.equal(h.intervals.size, 0);
   await h.gesture();
@@ -135,7 +149,7 @@ test('game over stops music and preserves the final jingle when core pauses', as
 test('missing Web Audio does not block gameplay or create timers', () => {
   const h = harness(false);
   const audio = h.audio.create();
-  for (const action of ['coin', 'hit', 'level', 'gameover']) audio.play(action);
+  for (const action of ['lightning', 'slice', 'whiff', 'shot', 'coin', 'hit', 'level', 'gameover']) audio.play(action);
   audio.setPaused(true);
   audio.setPaused(false);
   audio.destroy();
@@ -144,7 +158,7 @@ test('missing Web Audio does not block gameplay or create timers', () => {
 });
 
 
-test('samurai slice and shot effects use shared context and release on pause', async () => {
+test('electric slice, soft miss and shot effects remain distinct and release on pause', async () => {
   const h = harness();
   const audio = h.audio.create();
   await h.gesture();
@@ -152,9 +166,10 @@ test('samurai slice and shot effects use shared context and release on pause', a
   audio.play('shot');
   audio.play('slice');
   audio.play('whiff');
-  assert.equal(h.oscillators.length - before, 6); // shot + slice noise/two metallic partials + miss noise/soft boing
-  assert.ok(h.oscillators.some(node => node.frequency.values.includes(3150)));
-  assert.ok(h.oscillators.some(node => node.frequency.values.includes(4730)));
+  assert.equal(h.oscillators.length - before, 6); // shot + electric impact/cut + miss noise/soft boing
+  assert.ok(h.oscillators.some(node => node.type === 'sawtooth' && node.frequency.values.includes(3200)));
+  assert.ok(h.oscillators.some(node => node.type === 'triangle' && node.frequency.values.includes(70)));
+  assert.ok(h.oscillators.some(node => node.type === 'square' && node.frequency.values.includes(880)));
   assert.ok(h.oscillators.some(node => node.type === 'triangle' && node.frequency.values.includes(85)));
   assert.equal(h.contexts(), 1);
   audio.setPaused(true);
@@ -172,20 +187,20 @@ test('a hundred coins and combat calls cannot stack effects beyond eight sources
   h.toggle(0, false); // Inspect effects without the independent music notes.
   const before = h.oscillators.length;
   for (let i = 0; i < 100; i++) {
-    for (const action of ['coin', 'slice', 'shot', 'whiff']) audio.play(action);
+    for (const action of ['coin', 'slice', 'shot', 'whiff', 'lightning']) audio.play(action);
   }
   assert.equal(h.oscillators.length - before, 8);
   for (let i = 1; i <= 100; i++) {
     h.setTime(i * 250, false); // Even delayed onended delivery cannot grow the graph.
-    for (const action of ['coin', 'slice', 'shot', 'whiff', 'hit', 'angry']) audio.play(action);
+    for (const action of ['coin', 'slice', 'shot', 'whiff', 'hit', 'angry', 'lightning']) audio.play(action);
     assert.ok(h.oscillators.filter(node => !node.disconnected).length <= 8);
   }
   audio.destroy();
   assert.ok(h.oscillators.every(node => node.disconnected));
 });
 
-test('coin, shot and slice accept exact cooldown boundaries without replaying rejected sounds', async () => {
-  for (const [action, cooldown, cost] of [['coin', 100, 2], ['shot', 100, 1], ['slice', 125, 3]]) {
+test('coin, shot, slice and lightning accept exact cooldown boundaries without replaying rejected sounds', async () => {
+  for (const [action, cooldown, cost] of [['coin', 100, 2], ['shot', 100, 1], ['slice', 125, 3], ['lightning', 100, 3]]) {
     const h = harness();
     const audio = h.audio.create();
     await h.gesture();
@@ -234,7 +249,7 @@ test('level and game-over jingles preempt a full effects graph and remain protec
   audio.play('level');
   assert.equal(h.oscillators.length, before + 4);
   assert.equal(h.oscillators.filter(node => !node.disconnected).length, 4);
-  for (let i = 0; i < 100; i++) { audio.play('slice'); audio.play('coin'); audio.play('level'); }
+  for (let i = 0; i < 100; i++) { audio.play('slice'); audio.play('lightning'); audio.play('coin'); audio.play('level'); }
   assert.equal(h.oscillators.length, before + 4);
   audio.play('gameover');
   audio.setPaused(true);
@@ -258,7 +273,92 @@ test('sound mute releases effects and prevents even priority jingles; coin pitch
   h.toggle(1, false);
   assert.ok(h.oscillators.every(node => node.disconnected));
   const before = h.oscillators.length;
-  for (const action of ['coin', 'whiff', 'level', 'gameover']) audio.play(action);
+  for (const action of ['lightning', 'slice', 'coin', 'whiff', 'level', 'gameover']) audio.play(action);
   assert.equal(h.oscillators.length, before);
   audio.destroy();
+});
+
+
+test('accepted lightning is a bounded crackle, chirp and descending charge lasting 180–240ms', async () => {
+  const h = harness();
+  const audio = h.audio.create();
+  await h.gesture();
+  h.toggle(0, false);
+  const before = h.oscillators.length;
+  const gainStart = h.gains.length;
+  audio.play('lightning');
+  const notes = h.oscillators.slice(before);
+  assert.equal(notes.length, 3);
+  assert.ok(notes.every(node => node.stopAt >= 0.18 && node.stopAt <= 0.24));
+  assert.ok(notes.some(node => node.buffer), 'crackle uses locally synthesized noise');
+  const chirp = notes.find(node => node.type === 'sawtooth');
+  assert.ok(chirp.frequency.values.some((f, i, all) => i > 0 && f > all[i - 1]));
+  assert.ok(chirp.frequency.values.some((f, i, all) => i > 0 && f < all[i - 1]));
+  const charge = notes.find(node => node.type === 'triangle');
+  assert.ok(charge.frequency.values[0] > charge.frequency.values.at(-1));
+  const envelopes = h.gains.slice(gainStart).map(node => node.gain.values);
+  assert.ok(envelopes.some(values => values.length > 5), 'crackle has multiple amplitude bursts');
+  assert.ok(envelopes.every(values => Math.max(...values) <= 0.2), 'moderate source levels');
+  h.setTime(240);
+  assert.ok(notes.every(node => node.disconnected && node.onended === null));
+  assert.ok(h.filters.every(node => node.disconnected));
+  audio.destroy();
+});
+
+test('charge, confirmed cut and miss together stay at eight voices and all graph nodes clean up', async () => {
+  const h = harness();
+  const audio = h.audio.create();
+  await h.gesture();
+  h.toggle(0, false);
+  for (const action of ['lightning', 'slice', 'whiff']) audio.play(action);
+  assert.equal(h.oscillators.filter(node => !node.disconnected).length, 8);
+  const before = h.oscillators.length;
+  audio.play('shot');
+  assert.equal(h.oscillators.length, before, 'ninth source rejected');
+  audio.setPaused(true);
+  assert.ok(h.oscillators.every(node => node.disconnected && node.onended === null));
+  assert.ok(h.filters.every(node => node.disconnected));
+  assert.ok(h.gains.slice(1).every(node => node.disconnected));
+  audio.destroy();
+  assert.ok(h.gains.every(node => node.disconnected));
+  assert.equal(h.intervals.size, 0);
+});
+
+test('lightning respects live volume, mute, active-time pause and end-of-round cleanup', async () => {
+  const h = harness();
+  const scene = { runTime: 0 };
+  const audio = h.audio.create(scene);
+  await h.gesture();
+  h.toggle(0, false);
+  h.volume(15);
+  assert.equal(h.gains[0].gain.values.at(-1), 0.15);
+  audio.play('lightning');
+  h.toggle(1, false);
+  assert.ok(h.oscillators.every(node => node.disconnected));
+  let before = h.oscillators.length;
+  scene.runTime = 100;
+  audio.play('lightning');
+  assert.equal(h.oscillators.length, before);
+  h.toggle(1, true);
+  audio.play('lightning');
+  assert.equal(h.oscillators.length, before + 3, 'muted request did not consume cooldown');
+  audio.setPaused(true);
+  h.setTime(10000);
+  before = h.oscillators.length;
+  audio.setPaused(false);
+  scene.runTime = 199;
+  audio.play('lightning');
+  assert.equal(h.oscillators.length, before);
+  scene.runTime = 200;
+  audio.play('lightning');
+  const charge = h.oscillators.slice(-3);
+  audio.play('gameover');
+  assert.ok(charge.every(node => node.disconnected));
+  before = h.oscillators.length;
+  audio.play('lightning');
+  assert.equal(h.oscillators.length, before);
+  audio.destroy();
+  assert.ok(h.oscillators.every(node => node.disconnected));
+  assert.ok(h.gains.every(node => node.disconnected));
+  assert.ok(h.filters.every(node => node.disconnected));
 });
