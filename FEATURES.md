@@ -315,6 +315,19 @@ Both sides update their own status files after milestones and record failed chec
 
 | ID | Feature | Owner | Status | Branch / owned files | Verification |
 | --- | --- | --- | --- | --- | --- |
-| LIGHTNING-VISUALS | Chidori-inspired blue-white lightning around the existing sword lunge | Eldad visuals agent | awaiting integration | eldad/lightning-visuals; features/lightning.js, tests/lightning.test.cjs | Cosmetic only; accepted attack events, P1/P2, bounded effects, reduced motion, pause and restart cleanup. Preserve existing white afterimages. |
-| LIGHTNING-AUDIO | Original synthesized electric charge/cut sound | Eldad audio agent | awaiting integration | eldad/lightning-audio; features/audio.js, tests/audio.test.cjs | Offline Web Audio; accepted attack cue, electric impact, mute/volume, voice cap and lifecycle cleanup. |
-| LIGHTNING-INTEGRATION | Wire and verify lightning presentation | Eldad coordinator | awaiting integration | eldad/lightning-integration; game.js, index.html, README.md, tests/integration.test.cjs | Keep contact-only kills, hitboxes, 180ms/2.5x sword lunge, instant kill reload, 1.8s miss cooldown, disabled Shift and existing scoring untouched. |
+| LIGHTNING-VISUALS | Chidori-inspired blue-white lightning around the existing sword lunge | Eldad visuals agent | done | eldad/lightning-visuals; features/lightning.js, tests/lightning.test.cjs | Cosmetic only; accepted attack events, P1/P2, bounded effects, reduced motion, pause and restart cleanup. Preserve existing white afterimages. |
+| LIGHTNING-AUDIO | Original synthesized electric charge/cut sound | Eldad audio agent | done | eldad/lightning-audio; features/audio.js, tests/audio.test.cjs | Offline Web Audio; accepted attack cue, electric impact, mute/volume, voice cap and lifecycle cleanup. |
+| LIGHTNING-INTEGRATION | Wire and verify lightning presentation | Eldad coordinator | done | eldad/lightning-integration; game.js, index.html, README.md, tests/integration.test.cjs | Keep contact-only kills, hitboxes, 180ms/2.5x sword lunge, instant kill reload, 1.8s miss cooldown, disabled Shift and existing scoring untouched. |
+
+- Lightning presentation integrated and independently reviewed. **184 tests pass**;
+  all 21 authored JavaScript files pass syntax checks. Combat and abilities files
+  are byte-for-byte unchanged from the previous verified version: contact kills,
+  hitboxes, 180ms/2.5x lunge, instant kill reload and 1.8-second miss cooldown remain.
+- Browser checks show blue-white lightning on Space and P2 Enter alongside the
+  original white afterimages. Pause freezes the effect; restart resets it. The
+  mobile Strike control works and shows the same miss recovery; no console warnings
+  or errors. Graphics are limited to two reused objects and bounded trail samples;
+  reduced-motion behavior and eliminated-player cleanup pass automated checks.
+- The original synthesized 220ms electrical charge and sharper hit cut use the
+  existing offline audio mixer, mute/volume and eight-voice cap. Audio node timing,
+  limits and cleanup are tested; subjective sound quality needs the user's listen.
