@@ -1,5 +1,14 @@
 # Pair collaboration rules
 
+## Current ownership (30 October 2026)
+
+Eldad confirmed that Hila has stopped developing this game. Eldad's coordinator
+owns future work; no partner approval or ongoing HILA_STATUS.md coordination is
+required. Keep her existing contributions and authorship. The historical pair
+rules below still describe the lab; their partner-coordination requirements are
+superseded by this handoff. Continue using isolated agent worktrees, the single
+writer FEATURES.md board, serial integration and verification before marking done.
+
 Read `FEATURES.md` and `HILA_STATUS.md` (when present) before starting, continuing, or merging feature work. Fetch
 origin and read the current `origin/main:FEATURES.md`, since a worktree's copy may
 be old. The shared board is the source of truth for ownership and status.

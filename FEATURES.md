@@ -1,5 +1,9 @@
 # Shared feature board
 
+**30 October handoff:** Hila has ended development, as confirmed by Eldad.
+Future development is owned by Eldad's coordinator; historic partner entries and
+authorship remain, but new work no longer needs partner coordination.
+
 **Single writer: Eldad coordinating AI.** Hila writes `HILA_STATUS.md`; Eldad reads
 and mirrors her updates here. Both AIs read both files. Do not rewrite the other
 AI's status file. This avoids simultaneous edits to this board.
@@ -306,3 +310,11 @@ Both sides update their own status files after milestones and record failed chec
 - Integration initially failed its old exact caption-text assertion because the
   message now includes the player and earned count. Updated that assertion and
   added real-event failure/reset/recovery tests; all combined checks pass.
+
+## Lightning sword presentation
+
+| ID | Feature | Owner | Status | Branch / owned files | Verification |
+| --- | --- | --- | --- | --- | --- |
+| LIGHTNING-VISUALS | Chidori-inspired blue-white lightning around the existing sword lunge | Eldad visuals agent | implementing | eldad/lightning-visuals; features/lightning.js, tests/lightning.test.cjs | Cosmetic only; accepted attack events, P1/P2, bounded effects, reduced motion, pause and restart cleanup. Preserve existing white afterimages. |
+| LIGHTNING-AUDIO | Original synthesized electric charge/cut sound | Eldad audio agent | implementing | eldad/lightning-audio; features/audio.js, tests/audio.test.cjs | Offline Web Audio; accepted attack cue, electric impact, mute/volume, voice cap and lifecycle cleanup. |
+| LIGHTNING-INTEGRATION | Wire and verify lightning presentation | Eldad coordinator | implementing | eldad/lightning-integration; game.js, index.html, README.md, tests/integration.test.cjs | Keep contact-only kills, hitboxes, 180ms/2.5x sword lunge, instant kill reload, 1.8s miss cooldown, disabled Shift and existing scoring untouched. |
