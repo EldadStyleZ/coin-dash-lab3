@@ -6,8 +6,8 @@
   const preferences = { music: true, sound: true, volume: 0.28 };
   const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46];
   const EFFECT_LIMIT = 8;
-  const effectCosts = { shot: 1, slice: 3, whiff: 2, coin: 2, hit: 2, level: 4, angry: 3, gameover: 4 };
-  const cooldowns = { shot: 100, slice: 125, whiff: 250, coin: 100, hit: 250, level: 1000, angry: 2000 };
+  const effectCosts = { lightning: 3, shot: 1, slice: 3, whiff: 2, coin: 2, hit: 2, level: 4, angry: 3, gameover: 4 };
+  const cooldowns = { lightning: 100, shot: 100, slice: 125, whiff: 250, coin: 100, hit: 250, level: 1000, angry: 2000 };
 
   function create(scene) {
     const doc = root.document;
@@ -73,14 +73,17 @@
       oscillator.stop(at + duration + 0.02);
     }
 
-    // Hila's b19a23a synthesis, routed through our shared mute/volume mixer.
-    function combatSound(slice) {
+    // Hila's shot/whiff synthesis, plus original electric sword cues, in one mixer.
+    function combatSound(action) {
       if (!mixer || !context || context.state !== 'running') return;
       const at = context.currentTime;
-      function connect(source, filter, peak, attack, decay, stop, start = at) {
+      function connect(source, filter, peak, attack, decay, stop, start = at, pulses = []) {
         const gain = context.createGain();
         gain.gain.setValueAtTime(0.0001, start);
         gain.gain.exponentialRampToValueAtTime(peak, start + attack);
+        for (const [offset, level] of pulses) {
+          gain.gain.exponentialRampToValueAtTime(level, start + offset);
+        }
         gain.gain.exponentialRampToValueAtTime(0.0001, start + decay);
         source.connect(filter || gain);
         if (filter) filter.connect(gain);
@@ -91,7 +94,7 @@
         source.start(start);
         source.stop(start + stop);
       }
-      if (!slice) {
+      if (action === 'shot') {
         const source = context.createOscillator();
         source.type = 'square';
         source.frequency.setValueAtTime(880, at);
@@ -111,11 +114,40 @@
       noise.buffer = noiseBuffer;
       const band = context.createBiquadFilter();
       band.type = 'bandpass';
-      const whiff = slice === 'whiff';
-      band.Q.value = whiff ? 0.8 : 1.5;
-      band.frequency.setValueAtTime(whiff ? 2500 : 900, at);
-      band.frequency.exponentialRampToValueAtTime(whiff ? 600 : 7000, at + (whiff ? 0.2 : 0.12));
-      connect(noise, band, whiff ? 0.2 : 0.36, whiff ? 0.05 : 0.04, whiff ? 0.22 : 0.18, whiff ? 0.24 : 0.2);
+      if (action === 'lightning') {
+        // Pulsed noise makes the crackle; short pitch jumps add electric chirps.
+        // Only three sources, even for the full charge / descending cut gesture.
+        band.Q.value = 0.9;
+        band.frequency.setValueAtTime(1800, at);
+        band.frequency.exponentialRampToValueAtTime(4200, at + 0.07);
+        band.frequency.exponentialRampToValueAtTime(650, at + 0.21);
+        connect(noise, band, 0.18, 0.003, 0.21, 0.22, at,
+          [[0.018, 0.015], [0.027, 0.16], [0.045, 0.01],
+            [0.057, 0.14], [0.083, 0.018], [0.096, 0.11], [0.14, 0.025]]);
+        const chirp = context.createOscillator();
+        chirp.type = 'sawtooth';
+        chirp.frequency.setValueAtTime(1320, at);
+        for (const [offset, frequency] of [[0.025, 3960], [0.055, 1760],
+          [0.085, 5280], [0.14, 990], [0.18, 440]]) {
+          chirp.frequency.exponentialRampToValueAtTime(frequency, at + offset);
+        }
+        const soft = context.createBiquadFilter();
+        soft.type = 'lowpass';
+        soft.frequency.value = 5500;
+        connect(chirp, soft, 0.045, 0.004, 0.18, 0.2);
+        const charge = context.createOscillator();
+        charge.type = 'triangle';
+        charge.frequency.setValueAtTime(520, at);
+        charge.frequency.exponentialRampToValueAtTime(95, at + 0.21);
+        connect(charge, null, 0.075, 0.016, 0.21, 0.22);
+        return;
+      }
+      const whiff = action === 'whiff';
+      band.Q.value = 0.8;
+      band.frequency.setValueAtTime(whiff ? 2500 : 6500, at);
+      band.frequency.exponentialRampToValueAtTime(whiff ? 600 : 1400, at + (whiff ? 0.2 : 0.08));
+      connect(noise, band, whiff ? 0.2 : 0.24, whiff ? 0.05 : 0.002,
+        whiff ? 0.22 : 0.1, whiff ? 0.24 : 0.12);
       if (whiff) {
         const boing = context.createOscillator();
         boing.type = 'triangle';
@@ -125,12 +157,18 @@
         connect(boing, null, 0.045, 0.008, 0.18, 0.2, at + 0.04);
         return;
       }
-      [3150, 4730].forEach((frequency, i) => {
-        const source = context.createOscillator();
-        source.frequency.setValueAtTime(frequency, at + 0.07);
-        source.frequency.exponentialRampToValueAtTime(frequency * 0.94, at + 0.42);
-        connect(source, null, i ? 0.11 : 0.16, 0.004, 0.35, 0.36, at + 0.07);
-      });
+      // Confirmed impact: a sharper electrical snap with a low cut underneath.
+      const snap = context.createOscillator();
+      snap.type = 'sawtooth';
+      snap.frequency.setValueAtTime(3200, at);
+      snap.frequency.exponentialRampToValueAtTime(800, at + 0.07);
+      connect(snap, null, 0.07, 0.002, 0.08, 0.1, at,
+        [[0.015, 0.008], [0.022, 0.055]]);
+      const cut = context.createOscillator();
+      cut.type = 'triangle';
+      cut.frequency.setValueAtTime(180, at);
+      cut.frequency.exponentialRampToValueAtTime(70, at + 0.11);
+      connect(cut, null, 0.1, 0.003, 0.12, 0.14);
     }
 
     function stopMusic() {
@@ -190,9 +228,10 @@
       lastPlayedAt.set(action, time);
       attachMixer();
       switch (action) {
-        case 'shot': combatSound(false); break;
-        case 'slice': combatSound(true); break;
-        case 'whiff': combatSound('whiff'); break;
+        case 'lightning':
+        case 'shot':
+        case 'slice':
+        case 'whiff': combatSound(action); break;
         case 'coin':
           const pitch = [0.95, 1, 1.08, 1][coinNote++ % 4];
           tone(1046.5 * pitch, 0.07, 0, 'effect', 'sine', 0.14);
